@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>闪卡记忆</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:16px;color:#333;background:#f5f5f5;overflow:hidden}
+.page{position:absolute;top:0;left:0;width:100%;height:100%;background:#f5f5f5;display:none;flex-direction:column;overflow:hidden}
+.page.active{display:flex}
+.home-container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px}
+.home-logo{text-align:center;margin-bottom:40px}
+.logo-icon{font-size:72px;margin-bottom:16px}
+.home-title{font-size:32px;font-weight:700;color:#333}
+.home-subtitle{font-size:14px;color:#999;margin-top:8px}
+.home-stats{display:flex;gap:40px;margin-bottom:48px;padding:24px 40px;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.stat-item{display:flex;flex-direction:column;align-items:center}
+.stat-num{font-size:28px;font-weight:700;color:#26C8AC}
+.stat-label{font-size:12px;color:#999;margin-top:4px}
+.home-buttons{width:100%;display:flex;flex-direction:column;gap:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;user-select:none}
+.btn:active{transform:scale(.97);opacity:.85}
+.btn-icon{font-size:20px}
+.btn-block{width:100%}
+.btn-primary{background:linear-gradient(135deg,#26C8AC,#1AAE96);color:#fff;box-shadow:0 4px 14px rgba(38,200,172,.35)}
+.btn-secondary{background:#fff;color:#26C8AC;border:2px solid #26C8AC}
+.btn-cancel{background:#f0f0f0;color:#666}
+.btn-success{background:#26C8AC;color:#fff}
+.btn-danger{background:#ff4d4f;color:#fff}
+.btn-disabled{opacity:.5;pointer-events:none}
+.page-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid #eee;position:relative;z-index:10;flex-shrink:0}
+.btn-back{background:none;border:none;font-size:16px;color:#333;cursor:pointer;padding:8px 4px}
+.page-title{font-size:17px;font-weight:600;color:#333;position:absolute;left:50%;transform:translateX(-50%)}
+.header-right{min-width:60px;text-align:right}
+.add-stats{display:flex;justify-content:space-around;padding:16px;background:#fff;border-bottom:1px solid #eee;flex-shrink:0}
+.add-stat-item{display:flex;flex-direction:column;align-items:center}
+.add-stat-num{font-size:24px;font-weight:700;color:#26C8AC}
+.add-stat-label{font-size:12px;color:#999;margin-top:2px}
+.card-list{flex:1;overflow-y:auto;padding:12px 16px;padding-bottom:80px;-webkit-overflow-scrolling:touch}
+.card-item{display:flex;align-items:center;padding:14px 16px;background:#fff;border-radius:12px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.card-item-info{flex:1;overflow:hidden}
+.card-item-word{font-size:17px;font-weight:600;color:#333}
+.card-item-hint{font-size:13px;color:#999;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-item-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:500;margin-left:8px;vertical-align:middle}
+.badge-new{background:#e6f7f3;color:#26C8AC}
+.badge-review{background:#fff7e6;color:#faad14}
+.card-item-images{font-size:12px;color:#bbb;margin-top:4px}
+.card-item-delete{background:none;border:none;font-size:20px;color:#ccc;cursor:pointer;padding:8px;flex-shrink:0}
+.card-item-delete:active{color:#ff4d4f}
+.empty-hint{text-align:center;color:#ccc;font-size:14px;padding:60px 0}
+.fab{position:fixed;right:24px;bottom:32px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#26C8AC,#1AAE96);color:#fff;font-size:32px;border:none;box-shadow:0 4px 16px rgba(38,200,172,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;line-height:1}
+.fab:active{transform:scale(.92)}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;display:flex;align-items:center;justify-content:center}
+.modal-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45)}
+.modal-content{position:relative;width:85%;max-width:360px;background:#fff;border-radius:16px;padding:24px;z-index:1}
+.modal-sm{max-width:300px}
+.modal-title{font-size:18px;font-weight:600;color:#333;margin-bottom:20px;text-align:center}
+.modal-text{font-size:14px;color:#666;line-height:1.6;margin-bottom:20px;text-align:center}
+.modal-buttons{display:flex;gap:12px;justify-content:center}
+.modal-buttons .btn{flex:1;padding:12px;font-size:15px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:14px;font-weight:500;color:#333;margin-bottom:8px}
+.form-input{width:100%;padding:12px 14px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:15px;color:#333;outline:none;transition:border-color .2s;background:#fafafa}
+.form-input:focus{border-color:#26C8AC;background:#fff}
+.form-input::placeholder{color:#ccc}
+.form-hint{font-size:12px;color:#999;margin-top:6px}
+.study-timer{font-size:14px;color:#999;font-variant-numeric:tabular-nums}
+.study-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.empty-study{text-align:center;color:#999}
+.empty-study .empty-icon{font-size:64px;margin-bottom:16px}
+.empty-study p{font-size:18px;font-weight:500;color:#666}
+.empty-study .empty-sub{font-size:14px;color:#999;margin-top:8px}
+.study-card{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center}
+.card-word-section{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.card-word{font-size:32px;font-weight:700;color:#333}
+.btn-speak{width:44px;height:44px;border-radius:50%;background:#f0faf7;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.btn-speak:active{background:#d6f3ec;transform:scale(.92)}
+.card-hint{font-size:14px;color:#999;margin-bottom:32px;text-align:center;min-height:20px}
+.card-answer-section{width:100%;display:flex;flex-direction:column;align-items:center;animation:fadeInUp .3s ease}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.card-image-wrapper{width:100%;max-width:280px;height:200px;border-radius:12px;overflow:hidden;background:#f0f0f0;margin-bottom:16px;display:flex;align-items:center;justify-content:center}
+.card-image{max-width:100%;max-height:100%;object-fit:contain}
+.card-meaning{font-size:18px;color:#333;text-align:center;margin-bottom:32px;line-height:1.5}
+.card-actions{width:100%;display:flex;flex-direction:column;align-items:center}
+.btn-reveal{width:100%;max-width:280px;padding:14px;background:linear-gradient(135deg,#26C8AC,#1AAE96);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(38,200,172,.35);transition:all .2s}
+.btn-reveal:active{transform:scale(.97);opacity:.9}
+.feedback-buttons{width:100%;display:flex;gap:10px}
+.btn-forgot{flex:1;padding:14px 8px;background:#fff1f0;color:#ff4d4f;border:1.5px solid #ffccc7;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+.btn-forgot:active{background:#ffccc7}
+.btn-think{flex:1;padding:14px 8px;background:#fff7e6;color:#faad14;border:1.5px solid #ffe58f;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+.btn-think:active{background:#ffe58f}
+.btn-remembered{flex:1;padding:14px 8px;background:#e6f7f3;color:#26C8AC;border:1.5px solid #b7ebd8;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+.btn-remembered:active{background:#b7ebd8}
+.feedback-icon{font-size:24px}
+.study-complete{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px}
+.complete-icon{font-size:72px;margin-bottom:16px}
+.complete-title{font-size:24px;font-weight:700;color:#333;margin-bottom:32px}
+.complete-stats{display:flex;gap:16px;margin-bottom:24px}
+.complete-stat{display:flex;flex-direction:column;align-items:center;padding:16px 20px;background:#fff;border-radius:12px;min-width:72px;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.complete-num{font-size:24px;font-weight:700;color:#26C8AC}
+.complete-label{font-size:12px;color:#999;margin-top:4px}
+.complete-time{display:flex;align-items:center;gap:8px;padding:12px 24px;background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.time-label{font-size:14px;color:#999}
+.time-value{font-size:18px;font-weight:600;color:#333}
+.image-dialog-content{width:92%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.image-dialog-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;flex-shrink:0}
+.btn-text{background:none;border:none;font-size:15px;color:#666;cursor:pointer;padding:4px 8px}
+.btn-text-primary{color:#26C8AC;font-weight:600}
+.image-dialog-title{font-size:17px;font-weight:600;color:#333}
+.image-dialog-subtitle{font-size:13px;color:#999;padding:10px 16px;background:#fafafa;flex-shrink:0;display:flex;justify-content:space-between;align-items:center}
+.image-search-grid{flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;-webkit-overflow-scrolling:touch;align-content:start}
+.image-search-item{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;background:#f0f0f0}
+.image-search-item img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .3s}
+.image-search-item .img-checkbox{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.8);background:rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;transition:all .15s;z-index:2}
+.image-search-item.selected .img-checkbox{background:#26C8AC;border-color:#26C8AC;color:#fff}
+.image-search-item.selected{box-shadow:0 0 0 3px #26C8AC}
+.image-search-item.local-add{border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:32px;color:#ccc;background:#fafafa}
+.image-search-item.local-add:active{border-color:#26C8AC;color:#26C8AC}
+.image-dialog-footer{padding:12px 16px;border-top:1px solid #eee;flex-shrink:0;display:flex;gap:10px}
+.image-dialog-footer .btn{flex:1}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:12px 24px;background:rgba(0,0,0,.75);color:#fff;border-radius:8px;font-size:14px;z-index:200;pointer-events:none;animation:toastIn .2s ease}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.card-slide-in{animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+.loading-spinner{display:inline-block;width:20px;height:20px;border:2px solid #ddd;border-top-color:#26C8AC;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.img-loading-placeholder{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<!-- 主页面 -->
+<div id="page-home" class="page active">
+  <div class="home-container">
+    <div class="home-logo">
+      <div class="logo-icon">🃏</div>
+      <h1 class="home-title">闪卡记忆</h1>
+      <p class="home-subtitle">高效背单词，科学记忆</p>
+    </div>
+    <div class="home-stats">
+      <div class="stat-item"><span class="stat-num" id="stat-total">0</span><span class="stat-label">总词数</span></div>
+      <div class="stat-item"><span class="stat-num" id="stat-new">0</span><span class="stat-label">新词</span></div>
+      <div class="stat-item"><span class="stat-num" id="stat-review">0</span><span class="stat-label">待复习</span></div>
+    </div>
+    <div class="home-buttons">
+      <button class="btn btn-primary btn-block" onclick="App.goToAdd()"><span class="btn-icon">📝</span>添加闪卡</button>
+      <button class="btn btn-secondary btn-block" onclick="App.goToStudy()"><span class="btn-icon">📖</span>开始闪卡</button>
+    </div>
+  </div>
+</div>
+
+<!-- 添加闪卡页面 -->
+<div id="page-add" class="page">
+  <div class="page-header">
+    <button class="btn-back" onclick="App.goHome()">← 返回</button>
+    <h2 class="page-title">添加闪卡</h2>
+    <div class="header-right"></div>
+  </div>
+  <div class="add-stats">
+    <div class="add-stat-item"><span class="add-stat-num" id="add-total">0</span><span class="add-stat-label">总数</span></div>
+    <div class="add-stat-item"><span class="add-stat-num" id="add-new">0</span><span class="add-stat-label">新词</span></div>
+    <div class="add-stat-item"><span class="add-stat-num" id="add-old">0</span><span class="add-stat-label">旧词</span></div>
+  </div>
+  <div class="card-list" id="card-list"><div class="empty-hint" id="add-empty">还没有闪卡，点击右下角添加吧</div></div>
+  <button class="fab" onclick="App.openAddDialog()">+</button>
+</div>
+
+<!-- 添加闪卡弹窗 -->
+<div id="add-dialog" class="modal" style="display:none">
+  <div class="modal-overlay" onclick="App.closeAddDialog()"></div>
+  <div class="modal-content">
+    <h3 class="modal-title">添加闪卡</h3>
+    <div class="form-group">
+      <label class="form-label">单词</label>
+      <input type="text" class="form-input" id="input-word" placeholder="输入英文单词" maxlength="50" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">提示语（中文释义）</label>
+      <input type="text" class="form-input" id="input-hint" placeholder="输入提示或助记，也可留空自动查询" maxlength="100" autocomplete="off">
+      <div class="form-hint" id="hint-auto-tip" style="display:none">已自动查询释义，可修改</div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-cancel" onclick="App.closeAddDialog()">取消</button>
+      <button class="btn btn-primary" id="btn-confirm-word" onclick="App.confirmWord()">确认单词</button>
+    </div>
+  </div>
+</div>
+
+<!-- 图片选择弹窗 -->
+<div id="image-dialog" class="modal" style="display:none">
+  <div class="modal-overlay" onclick="App.closeImageDialog()"></div>
+  <div class="modal-content image-dialog-content">
+    <div class="image-dialog-header">
+      <button class="btn-text" onclick="App.closeImageDialog()">取消</button>
+      <h3 class="image-dialog-title" id="img-dialog-word-title">添加图片</h3>
+      <button class="btn-text btn-text-primary" id="btn-image-confirm" onclick="App.confirmImageSelection()">确定</button>
+    </div>
+    <div class="image-dialog-subtitle">
+      <span>从图片库中选择，点击图片选中/取消（最多5张）</span>
+    </div>
+    <div class="image-search-grid" id="image-search-grid"></div>
+    <div class="image-dialog-footer">
+      <button class="btn btn-cancel" onclick="App.addMoreImages()"><span>+</span> 本地图片</button>
+      <button class="btn btn-primary" id="btn-refresh-images" onclick="App.refreshImages()">🔄 换一批</button>
+    </div>
+  </div>
+</div>
+
+<!-- 开始闪卡页面 -->
+<div id="page-study" class="page">
+  <div class="page-header">
+    <button class="btn-back" onclick="App.confirmQuitStudy()">← 退出</button>
+    <h2 class="page-title" id="study-progress">0 / 0</h2>
+    <div class="header-right"><span class="study-timer" id="study-timer">00:00</span></div>
+  </div>
+  <div class="study-area" id="study-area">
+    <div class="empty-study" id="empty-study"><div class="empty-icon">🎉</div><p>今日任务已完成！</p><p class="empty-sub">没有需要学习的闪卡</p></div>
+    <div class="study-card" id="study-card" style="display:none">
+      <div class="card-word-section">
+        <div class="card-word" id="study-word"></div>
+        <button class="btn-speak" onclick="App.playPronunciation()">🔊</button>
+      </div>
+      <div class="card-hint" id="study-hint"></div>
+      <div class="card-answer-section" id="answer-section" style="display:none">
+        <div class="card-image-wrapper"><img class="card-image" id="study-image" src="" alt=""></div>
+        <div class="card-meaning" id="study-meaning"></div>
+      </div>
+      <div class="card-actions">
+        <button class="btn-reveal" id="btn-reveal" onclick="App.revealAnswer()">查看答案</button>
+        <div class="feedback-buttons" id="feedback-buttons" style="display:none">
+          <button class="btn btn-forgot" onclick="App.handleFeedback('forgot')"><span class="feedback-icon">😕</span>忘记了</button>
+          <button class="btn btn-think" onclick="App.handleFeedback('think')"><span class="feedback-icon">🤔</span>想一想</button>
+          <button class="btn btn-remembered" onclick="App.handleFeedback('remembered')"><span class="feedback-icon">😊</span>记住了</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="study-complete" id="study-complete" style="display:none">
+    <div class="complete-icon">🎊</div>
+    <h2 class="complete-title">学习完成！</h2>
+    <div class="complete-stats">
+      <div class="complete-stat"><span class="complete-num" id="complete-total">0</span><span class="complete-label">学习总数</span></div>
+      <div class="complete-stat"><span class="complete-num" id="complete-forgot">0</span><span class="complete-label">忘记了</span></div>
+      <div class="complete-stat"><span class="complete-num" id="complete-think">0</span><span class="complete-label">想一想</span></div>
+      <div class="complete-stat"><span class="complete-num" id="complete-remembered">0</span><span class="complete-label">记住了</span></div>
+    </div>
+    <div class="complete-time"><span class="time-label">用时</span><span class="time-value" id="complete-time">0 分钟</span></div>
+    <button class="btn btn-primary btn-block" onclick="App.goHome()" style="margin-top:32px">返回首页</button>
+  </div>
+</div>
+
+<!-- 退出确认 -->
+<div id="quit-dialog" class="modal" style="display:none">
+  <div class="modal-overlay" onclick="App.closeQuitDialog()"></div>
+  <div class="modal-content modal-sm">
+    <h3 class="modal-title">确认退出</h3>
+    <p class="modal-text">退出后本次学习进度不会保存，确定要退出吗？</p>
+    <div class="modal-buttons">
+      <button class="btn btn-cancel" onclick="App.closeQuitDialog()">继续学习</button>
+      <button class="btn btn-danger" onclick="App.quitStudy()">确认退出</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认 -->
+<div id="delete-dialog" class="modal" style="display:none">
+  <div class="modal-overlay" onclick="App.closeDeleteDialog()"></div>
+  <div class="modal-content modal-sm">
+    <h3 class="modal-title">确认删除</h3>
+    <p class="modal-text">删除后无法恢复，确定要删除这张闪卡吗？</p>
+    <div class="modal-buttons">
+      <button class="btn btn-cancel" onclick="App.closeDeleteDialog()">取消</button>
+      <button class="btn btn-danger" onclick="App.confirmDelete()">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 隐藏文件选择 -->
+<input type="file" id="file-input" accept="image/*" multiple style="display:none" onchange="App.handleImageSelect(event)">
+
+<script>
+/* ===== 配置 ===== */
+const UNSPLASH_KEY='95hX0k0LnDM0XDDFQKbWtvtfNOUS-cddV_Wb8jInCeE';
+
+/* ===== 数据存储 ===== */
+const Store=(()=>{
+  const SK='flashcards_data',RK='flashcards_records';
+  function load(){try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r)}catch(e){}return{cards:[],nextId:1}}
+  function save(d){localStorage.setItem(SK,JSON.stringify(d))}
+  function loadRec(){try{const r=localStorage.getItem(RK);if(r)return JSON.parse(r)}catch(e){}return{}}
+  function saveRec(r){localStorage.setItem(RK,JSON.stringify(r))}
+  return{
+    getAllCards(){return load().cards},
+    getCard(id){return load().cards.find(c=>c.id===id)||null},
+    addCard(word,hint,images=[]){const d=load();const c={id:d.nextId++,word:word.trim(),hint:hint.trim(),images,createdAt:Date.now(),isNew:true};d.cards.push(c);save(d);return c},
+    deleteCard(id){const d=load();d.cards=d.cards.filter(c=>c.id!==id);save(d);const r=loadRec();delete r[id];saveRec(r)},
+    getStats(){const d=load();const t=d.cards.length,n=d.cards.filter(c=>c.isNew).length;return{total:t,newCount:n,oldCount:t-n}},
+    markAsOld(id){const d=load();const c=d.cards.find(c=>c.id===id);if(c&&c.isNew){c.isNew=false;save(d)}},
+    getTodayReviewCards(){const cards=this.getAllCards().filter(c=>!c.isNew);const rec=loadRec();const now=Date.now();return cards.filter(c=>{const r=rec[c.id];if(!r)return true;return r.nextReview<=now})},
+    getNewCards(){return this.getAllCards().filter(c=>c.isNew)},
+    updateRecord(id,rec){const r=loadRec();r[id]=rec;saveRec(r)},
+    getRecord(id){return loadRec()[id]||null},
+    getStudyPlan(mo=20,mn=10){const o=this.getTodayReviewCards().slice(0,mo).map(c=>({...c,type:'review'}));const n=this.getNewCards().slice(0,mn).map(c=>({...c,type:'new'}));return shuffle([...o,...n])},
+    clearAll(){localStorage.removeItem(SK);localStorage.removeItem(RK)}
+  }
+})();
+function shuffle(a){const s=[...a];for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]]}return s}
+
+/* ===== 遗忘曲线 ===== */
+const SR=(()=>{
+  const DEF=2.5,MIN=1.3,D=0.15,INT=[1,2,4,7,15,30,60,120,240];
+  function process(cur,fb){
+    const now=Date.now(),day=864e5;
+    if(!cur){let iv;switch(fb){case'forgot':iv=1;break;case'think':iv=2;break;case'remembered':iv=4;break;default:iv=1}return{interval:iv,easeFactor:DEF,nextReview:now+iv*day,reviewCount:1,lastReview:now}}
+    const{easeFactor:ef,reviewCount:rc}=cur;let nef=ef,ni;
+    switch(fb){case'forgot':nef=Math.max(MIN,ef-D);ni=1;break;case'think':ni=cur.interval;break;case'remembered':nef=ef+D;const ci=INT.findIndex(i=>i>=cur.interval);if(ci>=0&&ci<INT.length-1)ni=INT[ci+1];else ni=Math.round(cur.interval*ef);break}
+    return{interval:Math.max(1,ni),easeFactor:Math.max(MIN,nef),nextReview:now+Math.max(1,ni)*day,reviewCount:rc+1,lastReview:now}
+  }
+  function status(r){if(!r)return'新词';const d=Math.ceil((r.nextReview-Date.now())/864e5);return d<=0?'待复习':d+'天后复习'}
+  return{process,status}
+})();
+
+/* ===== Unsplash 图片搜索 ===== */
+async function searchUnsplashImages(query,page=1,perPage=12){
+  try{
+    const resp=await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}&orientation=squarish`,{
+      headers:{'Authorization':'Client-ID '+UNSPLASH_KEY}
+    });
+    if(!resp.ok)throw new Error('API error');
+    const data=await resp.json();
+    return{
+      images:data.results.map(item=>({
+        url:item.urls.regular,
+        thumb:item.urls.small,
+        download:item.urls.raw+'&w=400&h=400&fit=crop'
+      })),
+      totalPages:data.total_pages,
+      total:data.total
+    };
+  }catch(e){
+    console.error('Unsplash search failed:',e);
+    return null;
+  }
+}
+
+/* ===== 中文释义查询（免费词典 API） ===== */
+async function lookupWord(word){
+  // 优先用免费词典 API
+  try{
+    const resp=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    if(resp.ok){
+      const data=await resp.json();
+      const entry=data[0];
+      let meanings=[];
+      if(entry.meanings){
+        entry.meanings.forEach(m=>{
+          m.definitions.slice(0,2).forEach(d=>{
+            if(d.definition)meanings.push(d.definition);
+          });
+        });
+      }
+      // 简化释义，取前2个
+      if(meanings.length>0){
+        return meanings.slice(0,2).join('；');
+      }
+    }
+  }catch(e){console.log('Dict API failed, trying fallback')}
+
+  // 备用：用 MyMemory 翻译 API（免费）
+  try{
+    const resp=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh-CN`);
+    if(resp.ok){
+      const data=await resp.json();
+      if(data.responseData&&data.responseData.translatedText){
+        return data.responseData.translatedText;
+      }
+    }
+  }catch(e){console.log('Translate API failed')}
+
+  return '';
+}
+
+/* ===== 主应用 ===== */
+const App=(()=>{
+  let idx=0,study=[],t0=0,ti=null,pendingImgs=[],delId=null,stats={forgot:0,think:0,remembered:0};
+  let selUrls=[],curWord='',curHint='',unsplashPage=1,unsplashTotalPages=0;
+
+  function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active')}
+  function updateHome(){const s=Store.getStats();document.getElementById('stat-total').textContent=s.total;document.getElementById('stat-new').textContent=s.newCount;document.getElementById('stat-review').textContent=Store.getTodayReviewCards().length}
+  function goHome(){stopTimer();showPage('page-home');updateHome()}
+  function goToAdd(){showPage('page-add');renderList()}
+
+  function goToStudy(){
+    study=Store.getStudyPlan();
+    if(!study.length){showPage('page-study');document.getElementById('study-area').style.display='flex';document.getElementById('study-card').style.display='none';document.getElementById('empty-study').style.display='block';document.getElementById('study-complete').style.display='none';document.getElementById('study-progress').textContent='0 / 0';return}
+    idx=0;stats={forgot:0,think:0,remembered:0};t0=Date.now();showPage('page-study');startTimer();showCard()
+  }
+
+  /* 计时器 */
+  function startTimer(){stopTimer();updTimer();ti=setInterval(updTimer,1000)}
+  function stopTimer(){if(ti){clearInterval(ti);ti=null}}
+  function updTimer(){const e=Math.floor((Date.now()-t0)/1000);document.getElementById('study-timer').textContent=String(Math.floor(e/60)).padStart(2,'0')+':'+String(e%60).padStart(2,'0')}
+
+  /* 闪卡列表 */
+  function renderList(){
+    const cards=Store.getAllCards(),s=Store.getStats();
+    document.getElementById('add-total').textContent=s.total;
+    document.getElementById('add-new').textContent=s.newCount;
+    document.getElementById('add-old').textContent=s.oldCount;
+    const el=document.getElementById('card-list'),emp=document.getElementById('add-empty');
+    if(!cards.length){el.innerHTML='';el.appendChild(emp);emp.style.display='block';return}
+    emp.style.display='none';el.innerHTML='';
+    [...cards].reverse().forEach(c=>{
+      const d=document.createElement('div');d.className='card-item';
+      const bc=c.isNew?'badge-new':'badge-review',bt=c.isNew?'新词':'旧词',ic=c.images?c.images.length:0;
+      d.innerHTML=`<div class="card-item-info"><div><span class="card-item-word">${esc(c.word)}</span><span class="card-item-badge ${bc}">${bt}</span></div><div class="card-item-hint">${esc(c.hint||'')}</div>${ic?`<div class="card-item-images">${ic} 张图片</div>`:''}</div><button class="card-item-delete" onclick="App.openDeleteDialog(${c.id})">✕</button>`;
+      el.appendChild(d)
+    })
+  }
+
+  /* 添加弹窗 */
+  function openAddDialog(){
+    document.getElementById('input-word').value='';
+    document.getElementById('input-hint').value='';
+    document.getElementById('hint-auto-tip').style.display='none';
+    document.getElementById('btn-confirm-word').disabled=false;
+    document.getElementById('btn-confirm-word').textContent='确认单词';
+    pendingImgs=[];curWord='';curHint='';
+    document.getElementById('add-dialog').style.display='flex';
+    setTimeout(()=>document.getElementById('input-word').focus(),100)
+  }
+  function closeAddDialog(){document.getElementById('add-dialog').style.display='none';pendingImgs=[]}
+
+  async function confirmWord(){
+    const w=document.getElementById('input-word').value.trim();
+    if(!w){toast('请输入单词');return}
+
+    // 禁用按钮，显示加载
+    const btn=document.getElementById('btn-confirm-word');
+    btn.disabled=true;
+    btn.textContent='查询中...';
+
+    const h=document.getElementById('input-hint').value.trim();
+
+    // 如果用户没有手动输入释义，自动查询
+    if(!h){
+      const meaning=await lookupWord(w);
+      if(meaning){
+        document.getElementById('input-hint').value=meaning;
+        document.getElementById('hint-auto-tip').style.display='block';
+      }
+    }
+
+    btn.disabled=false;
+    btn.textContent='确认单词';
+
+    // 关闭添加弹窗，打开图片选择弹窗
+    document.getElementById('add-dialog').style.display='none';
+    curWord=w;
+    curHint=document.getElementById('input-hint').value.trim();
+    openImgDialog()
+  }
+
+  /* 图片选择弹窗 */
+  function openImgDialog(){
+    selUrls=[];unsplashPage=1;
+    document.getElementById('img-dialog-word-title').textContent='添加图片 — '+curWord;
+    document.getElementById('image-dialog').style.display='flex';
+    updConfirmBtn();
+    loadUnsplashImages()
+  }
+  function closeImgDialog(){document.getElementById('image-dialog').style.display='none';selUrls=[]}
+
+  async function loadUnsplashImages(){
+    const g=document.getElementById('image-search-grid');
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#999"><div class="loading-spinner" style="margin:0 auto 10px"></div><div>正在搜索图片...</div></div>';
+
+    const result=await searchUnsplashImages(curWord,unsplashPage,12);
+
+    if(!result||!result.images.length){
+      g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px 0;color:#999">未找到相关图片，请用下方按钮添加本地图片</div>';
+      // 仍然显示 + 号
+      renderLocalAddBtn(g);
+      return
+    }
+
+    unsplashTotalPages=result.totalPages;
+    g.innerHTML='';
+
+    result.images.forEach((img,i)=>{
+      const item=document.createElement('div');
+      item.className='image-search-item img-loading-placeholder';
+      item.dataset.url=img.url;
+      item.dataset.download=img.download;
+      item.innerHTML=`<img src="${img.thumb}" alt="" loading="lazy" onload="this.parentElement.classList.remove('img-loading-placeholder')"><div class="img-checkbox">✓</div>`;
+      item.onclick=()=>toggleImgSel(item,img.url);
+      g.appendChild(item)
+    });
+
+    // 在最后加本地添加按钮
+    renderLocalAddBtn(g)
+  }
+
+  function renderLocalAddBtn(grid){
+    if(selUrls.length<5){
+      const add=document.createElement('div');
+      add.className='image-search-item local-add';
+      add.innerHTML='<span>+</span>';
+      add.onclick=()=>document.getElementById('file-input').click();
+      grid.appendChild(add)
+    }
+  }
+
+  function toggleImgSel(item,url){
+    const idx2=selUrls.indexOf(url);
+    if(idx2>=0){
+      selUrls.splice(idx2,1);
+      item.classList.remove('selected')
+    }else{
+      if(selUrls.length>=5){toast('最多选择5张图片');return}
+      selUrls.push(url);
+      item.classList.add('selected')
+    }
+    updConfirmBtn()
+  }
+
+  function refreshImages(){
+    if(unsplashPage>=unsplashTotalPages&&unsplashTotalPages>0){
+      unsplashPage=1
+    }else{
+      unsplashPage++
+    }
+    selUrls=[];
+    updConfirmBtn();
+    loadUnsplashImages()
+  }
+
+  function addMoreImages(){document.getElementById('file-input').click()}
+
+  function handleImageSelect(e){
+    const f=e.target.files;if(!f||!f.length)return;
+    const rem=5-selUrls.length;if(rem<=0){toast('最多5张');e.target.value='';return}
+    const arr=[...f].slice(0,rem);let done=0;
+    arr.forEach(file=>{const r=new FileReader();r.onload=ev=>{selUrls.push(ev.target.result);done++;if(done===arr.length){appendLocalToGrid();updConfirmBtn()}};r.readAsDataURL(file)});
+    e.target.value=''
+  }
+
+  function appendLocalToGrid(){
+    const g=document.getElementById('image-search-grid');
+    // 找出 base64 图片（本地新增的）
+    const localImgs=selUrls.filter(u=>u.startsWith('data:'));
+    localImgs.forEach(url=>{
+      // 检查是否已在 grid 中
+      if(g.querySelector(`[data-local="${url}"]`))return;
+      const item=document.createElement('div');
+      item.className='image-search-item selected';
+      item.dataset.url=url;
+      item.dataset.local=url;
+      item.innerHTML=`<img src="${url}" alt=""><div class="img-checkbox">✓</div>`;
+      item.onclick=()=>{
+        const i=selUrls.indexOf(url);
+        if(i>=0){selUrls.splice(i,1);item.remove();updConfirmBtn()}
+      };
+      // 插入到 + 号之前
+      const localAddBtn=g.querySelector('.local-add');
+      if(localAddBtn){g.insertBefore(item,localAddBtn)}
+      else{g.appendChild(item)}
+    })
+  }
+
+  function updConfirmBtn(){
+    const btn=document.getElementById('btn-image-confirm');
+    btn.textContent=selUrls.length>0?`确定 (${selUrls.length})`:'跳过'
+  }
+
+  function confirmImageSelection(){
+    pendingImgs=[...selUrls];
+    closeImgDialog();
+    Store.addCard(curWord,curHint,pendingImgs);
+    pendingImgs=[];renderList();
+    toast(selUrls.length>0?'添加成功':'已添加（无图片）')
+  }
+
+  /* 删除 */
+  function openDeleteDialog(id){delId=id;document.getElementById('delete-dialog').style.display='flex'}
+  function closeDeleteDialog(){document.getElementById('delete-dialog').style.display='none';delId=null}
+  function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();renderList();toast('已删除')}}
+
+  /* 学习 */
+  function showCard(){
+    if(idx>=study.length){showComplete();return}
+    const c=study[idx];
+    document.getElementById('study-area').style.display='flex';document.getElementById('empty-study').style.display='none';document.getElementById('study-card').style.display='flex';document.getElementById('study-complete').style.display='none';
+    document.getElementById('study-progress').textContent=`${idx+1} / ${study.length}`;
+    document.getElementById('study-word').textContent=c.word;document.getElementById('study-hint').textContent=c.hint||'';
+    document.getElementById('answer-section').style.display='none';document.getElementById('btn-reveal').style.display='block';document.getElementById('feedback-buttons').style.display='none';
+    const sc=document.getElementById('study-card');sc.classList.remove('card-slide-in');void sc.offsetWidth;sc.classList.add('card-slide-in');
+    setTimeout(play,300)
+  }
+  function revealAnswer(){
+    const c=study[idx];document.getElementById('btn-reveal').style.display='none';document.getElementById('feedback-buttons').style.display='flex';
+    const imgEl=document.getElementById('study-image'),wrapper=document.querySelector('.card-image-wrapper');
+    if(c.images&&c.images.length>0){imgEl.src=c.images[Math.floor(Math.random()*c.images.length)];imgEl.style.display='block';wrapper.style.display='flex'}else{imgEl.style.display='none';wrapper.style.display='none'}
+    document.getElementById('study-meaning').textContent=c.hint||'（无释义）';document.getElementById('answer-section').style.display='flex'
+  }
+  function handleFeedback(fb){
+    const c=study[idx];stats[fb]++;
+    const cur=Store.getRecord(c.id);Store.updateRecord(c.id,SR.process(cur,fb));
+    if(c.type==='new')Store.markAsOld(c.id);
+    idx++;showCard()
+  }
+  function showComplete(){
+    stopTimer();const m=Math.round((Date.now()-t0)/60000);
+    document.getElementById('study-area').style.display='none';document.getElementById('study-card').style.display='none';document.getElementById('study-complete').style.display='flex';document.getElementById('study-progress').textContent='完成';
+    document.getElementById('complete-total').textContent=study.length;document.getElementById('complete-forgot').textContent=stats.forgot;document.getElementById('complete-think').textContent=stats.think;document.getElementById('complete-remembered').textContent=stats.remembered;document.getElementById('complete-time').textContent=m+' 分钟'
+  }
+  function confirmQuitStudy(){document.getElementById('quit-dialog').style.display='flex'}
+  function closeQuitDialog(){document.getElementById('quit-dialog').style.display='none'}
+  function quitStudy(){closeQuitDialog();stopTimer();goHome()}
+
+  /* 发音（美音） */
+  function play(){
+    const c=study[idx];if(!c)return;
+    if('speechSynthesis' in window){
+      speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(c.word);u.lang='en-US';u.rate=0.9;u.pitch=1;
+      const v=speechSynthesis.getVoices(),us=v.find(x=>x.lang==='en-US'&&/us|united states/i.test(x.name))||v.find(x=>x.lang==='en-US')||v.find(x=>x.lang.startsWith('en'));
+      if(us)u.voice=us;speechSynthesis.speak(u)
+    }
+  }
+
+  /* 工具 */
+  function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+  function toast(m){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),1500)}
+
+  /* 初始化 */
+  function init(){
+    updateHome();
+    if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.addEventListener('voiceschanged',()=>speechSynthesis.getVoices())}
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
+
+  return{goHome,goToAdd,goToStudy,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImageDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect}
+})();
+</script>
+</body>
+</html>
