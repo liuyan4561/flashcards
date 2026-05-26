@@ -202,10 +202,10 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
 
 <!-- 图片选择弹窗 -->
 <div id="image-dialog" class="modal" style="display:none">
-  <div class="modal-overlay" onclick="App.closeImageDialog()"></div>
+  <div class="modal-overlay" onclick="App.closeImgDialog()"></div>
   <div class="modal-content image-dialog-content">
     <div class="image-dialog-header">
-      <button class="btn-text" onclick="App.closeImageDialog()">取消</button>
+      <button class="btn-text" onclick="App.closeImgDialog()">取消</button>
       <h3 class="image-dialog-title" id="img-dialog-word-title">添加图片</h3>
       <button class="btn-text btn-text-primary" id="btn-image-confirm" onclick="App.confirmImageSelection()">确定</button>
     </div>
@@ -716,7 +716,7 @@ const App=(()=>{
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 
-  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImageDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit}
+  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit}
 })();
 </script>
 </body>
