@@ -130,6 +130,17 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
 .settings-item-value .arrow{font-size:14px;color:#ccc}
 .number-input{width:100%;padding:14px 16px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:18px;color:#333;outline:none;transition:border-color .2s;background:#fafafa;text-align:center}
 .number-input:focus{border-color:#26C8AC;background:#fff}
+.import-info{font-size:13px;color:#888;line-height:1.6;margin-bottom:16px;padding:10px 12px;background:#f8f9fa;border-radius:8px}
+.import-info code{background:#e8f4f0;color:#26C8AC;padding:1px 6px;border-radius:4px;font-size:12px}
+.import-preview-header{font-size:14px;color:#666;margin-bottom:8px}
+.import-preview-list{max-height:240px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:12px}
+.import-preview-item{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;gap:8px}
+.import-preview-item:last-child{border-bottom:none}
+.import-preview-word{font-weight:600;color:#333;min-width:100px}
+.import-preview-hint{color:#888;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.import-preview-dup{color:#ff4d4f;font-size:12px;flex-shrink:0}
+.import-dup-info{font-size:12px;color:#ff4d4f;margin-bottom:8px;padding-left:4px}
+.import-empty-hint{text-align:center;color:#999;padding:20px 0;font-size:14px}
 .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:12px 24px;background:rgba(0,0,0,.75);color:#fff;border-radius:8px;font-size:14px;z-index:200;pointer-events:none;animation:toastIn .2s ease}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 .card-slide-in{animation:slideIn .3s ease}
@@ -168,7 +179,7 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
   <div class="page-header">
     <button class="btn-back" onclick="App.goHome()">← 返回</button>
     <h2 class="page-title">添加闪卡</h2>
-    <div class="header-right"></div>
+    <div class="header-right"><button class="btn-text btn-text-primary" onclick="App.openImportDialog()">📥 导入</button></div>
   </div>
   <div class="add-stats">
     <div class="add-stat-item"><span class="add-stat-num" id="add-total">0</span><span class="add-stat-label">总数</span></div>
@@ -216,6 +227,27 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
     <div class="image-dialog-footer">
       <button class="btn btn-cancel" onclick="App.addMoreImages()"><span>+</span> 本地图片</button>
       <button class="btn btn-primary" id="btn-refresh-images" onclick="App.refreshImages()">🔄 换一批</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量导入弹窗 -->
+<div id="import-dialog" class="modal" style="display:none">
+  <div class="modal-overlay" onclick="App.closeImportDialog()"></div>
+  <div class="modal-content">
+    <h3 class="modal-title">📥 批量导入闪卡</h3>
+    <div class="import-info">支持 CSV 或 TXT 文件，每行一个单词。格式：<code>单词,释义</code> 或 <code>单词 释义</code>（Tab/逗号分隔）</div>
+    <div id="import-preview" style="display:none">
+      <div class="import-preview-header"><span>预览 <strong id="import-count">0</strong> 个单词</span></div>
+      <div class="import-preview-list" id="import-preview-list"></div>
+      <div class="import-dup-info" id="import-dup-info" style="display:none"></div>
+    </div>
+    <div class="import-empty-hint" id="import-empty-hint" style="display:none">未识别到有效单词，请检查文件格式</div>
+    <input type="file" id="import-file-input" accept=".csv,.txt" style="display:none" onchange="App.handleFileSelect(event)">
+    <div class="modal-buttons">
+      <button class="btn btn-cancel" onclick="App.closeImportDialog()">取消</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()">选择文件</button>
+      <button class="btn btn-primary" id="btn-confirm-import" onclick="App.confirmImport()" style="display:none">确认导入</button>
     </div>
   </div>
 </div>
@@ -663,6 +695,68 @@ const App=(()=>{
   function closeDeleteDialog(){document.getElementById('delete-dialog').style.display='none';delId=null}
   function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();renderList();toast('已删除')}}
 
+  /* 批量导入 */
+  let importWords=[];
+  function openImportDialog(){
+    importWords=[];
+    document.getElementById('import-preview').style.display='none';
+    document.getElementById('import-empty-hint').style.display='none';
+    document.getElementById('btn-confirm-import').style.display='none';
+    document.getElementById('import-dup-info').style.display='none';
+    document.getElementById('import-file-input').value='';
+    document.getElementById('import-dialog').style.display='flex';
+  }
+  function closeImportDialog(){document.getElementById('import-dialog').style.display='none';importWords=[]}
+  function handleFileSelect(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const text=ev.target.result;
+      parseImportFile(text);
+    };
+    reader.readAsText(file,'UTF-8');
+  }
+  function parseImportFile(text){
+    const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+    const existingWords=new Set(Store.getAllCards().map(c=>c.word.toLowerCase()));
+    const parsed=[];let dupCount=0;
+    lines.forEach(line=>{
+      // 支持逗号、Tab、竖线分隔
+      let parts=line.split(/[,，\t|]/).map(s=>s.trim()).filter(Boolean);
+      if(parts.length<1)return;
+      const word=parts[0];
+      if(!word||!/[a-zA-Z]/.test(word))return; // 跳过纯中文/空行
+      const hint=parts.length>1?parts.slice(1).join(' '):'';
+      const isDup=existingWords.has(word.toLowerCase())||parsed.some(p=>p.word.toLowerCase()===word.toLowerCase());
+      if(isDup){dupCount++;return}
+      parsed.push({word,hint});
+    });
+    importWords=parsed;
+    const preview=document.getElementById('import-preview');
+    const emptyHint=document.getElementById('import-empty-hint');
+    const btnImport=document.getElementById('btn-confirm-import');
+    const dupInfo=document.getElementById('import-dup-info');
+    if(!parsed.length){preview.style.display='none';emptyHint.style.display='block';btnImport.style.display='none';dupInfo.style.display='none';return}
+    document.getElementById('import-count').textContent=parsed.length;
+    const list=document.getElementById('import-preview-list');
+    list.innerHTML='';
+    parsed.slice(0,50).forEach(p=>{
+      const d=document.createElement('div');d.className='import-preview-item';
+      d.innerHTML=`<span class="import-preview-word">${esc(p.word)}</span><span class="import-preview-hint">${esc(p.hint)}</span>`;
+      list.appendChild(d);
+    });
+    if(parsed.length>50){const more=document.createElement('div');more.className='import-preview-item';more.style.color='#999';more.style.justifyContent='center';more.textContent=`... 还有 ${parsed.length-50} 个单词`;list.appendChild(more)}
+    preview.style.display='block';emptyHint.style.display='none';btnImport.style.display='block';
+    if(dupCount>0){dupInfo.style.display='block';dupInfo.textContent=`已跳过 ${dupCount} 个重复单词`;btnImport.style.display='block'}
+  }
+  function confirmImport(){
+    if(!importWords.length)return;
+    importWords.forEach(w=>Store.addCard(w.word,w.hint));
+    const count=importWords.length;
+    closeImportDialog();renderList();
+    toast(`成功导入 ${count} 个单词`);
+  }
+
   /* 学习 */
   function showCard(){
     if(idx>=study.length){showComplete();return}
@@ -754,7 +848,7 @@ const App=(()=>{
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 
-  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit}
+  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit}
 })();
 </script>
 <audio id="tts-audio" style="display:none"></audio>
