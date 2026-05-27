@@ -148,6 +148,18 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
 .import-empty-hint{text-align:center;color:#999;padding:20px 0;font-size:14px}
 .import-pagebar{display:flex;align-items:center;justify-content:center;gap:16px;margin:16px 0 4px}
 .import-page-info{font-size:14px;color:#666}
+.import-hint-list{flex:1;overflow-y:auto;padding:0 0 8px;-webkit-overflow-scrolling:touch}
+.import-hint-item{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #f0f0f0}
+.import-hint-item:last-child{border-bottom:none}
+.import-hint-word{flex-shrink:0;min-width:70px;font-size:15px;font-weight:600;color:#333}
+.import-hint-input{flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;background:#fafafa}
+.import-hint-input:focus{border-color:#26C8AC;background:#fff}
+.import-hint-auto{flex-shrink:0;padding:4px 8px;font-size:11px;background:#e6f7f3;color:#26C8AC;border:1px solid #26C8AC;border-radius:6px;cursor:pointer;white-space:nowrap}
+.import-hint-auto:active{opacity:.7}
+.import-hint-auto.loading{opacity:.5;pointer-events:none}
+.import-step-indicator{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;font-size:13px;color:#999}
+.import-step-dot{width:8px;height:8px;border-radius:50%;background:#ddd}
+.import-step-dot.active{background:#26C8AC}
 .btn-small{padding:6px 14px;font-size:13px;border-radius:8px}
 .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:12px 24px;background:rgba(0,0,0,.75);color:#fff;border-radius:8px;font-size:14px;z-index:200;pointer-events:none;animation:toastIn .2s ease}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
@@ -247,23 +259,32 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
   <div class="modal-overlay" onclick="App.closeImportDialog()"></div>
   <div class="modal-content import-dialog-wide">
     <h3 class="modal-title">📥 从文本中提取单词</h3>
-    <div class="import-info">上传动画片台词或英文文本，自动提取单词。白色单词可点击选择，灰色为已添加的单词。</div>
-    <div class="import-toolbar" id="import-toolbar" style="display:none">
-      <span class="import-stat" id="import-stat">0 个新词可选</span>
-      <button class="btn btn-small btn-success-outline" onclick="App.toggleSelectAll()" id="btn-select-all">全选</button>
+<!-- 第一步：选词 -->
+    <div id="import-step1">
+      <div class="import-info">上传动画片台词或英文文本，自动提取单词。白色单词可点击选择，灰色为已添加的单词。</div>
+      <div class="import-toolbar" id="import-toolbar" style="display:none">
+        <span class="import-stat" id="import-stat">0 个新词可选</span>
+        <button class="btn btn-small btn-success-outline" onclick="App.toggleSelectAll()" id="btn-select-all">全选</button>
+      </div>
+      <div class="import-word-grid" id="import-word-grid"></div>
+      <div class="import-empty-hint" id="import-empty-hint">选择文本文件（.txt），系统会自动提取单词</div>
+      <input type="file" id="import-file-input" accept=".txt,.csv,.docx,.pdf" style="display:none" onchange="App.handleFileSelect(event)">
+      <div class="import-pagebar" id="import-pagebar" style="display:none">
+        <button class="btn btn-small" onclick="App.prevPage()" id="btn-prev-page">上一页</button>
+        <span class="import-page-info" id="import-page-info">1 / 1</span>
+        <button class="btn btn-small" onclick="App.nextPage()" id="btn-next-page">下一页</button>
+      </div>
     </div>
-    <div class="import-word-grid" id="import-word-grid"></div>
-    <div class="import-empty-hint" id="import-empty-hint">选择文本文件（.txt），系统会自动提取单词</div>
-    <input type="file" id="import-file-input" accept=".txt,.csv,.docx,.pdf" style="display:none" onchange="App.handleFileSelect(event)">
-    <div class="import-pagebar" id="import-pagebar" style="display:none">
-      <button class="btn btn-small" onclick="App.prevPage()" id="btn-prev-page">上一页</button>
-      <span class="import-page-info" id="import-page-info">1 / 1</span>
-      <button class="btn btn-small" onclick="App.nextPage()" id="btn-next-page">下一页</button>
+    <!-- 第二步：编辑提示语 -->
+    <div id="import-step2" style="display:none">
+      <div class="import-info">为选中的单词添加英文提示语（例句），也可留空。点击「自动」可获取例句。</div>
+      <div class="import-hint-list" id="import-hint-list"></div>
     </div>
     <div class="modal-buttons">
       <button class="btn btn-cancel" onclick="App.closeImportDialog()">取消</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()">选择文件</button>
-      <button class="btn btn-primary" id="btn-confirm-import" onclick="App.confirmImport()" style="display:none">确认添加 (<span id="import-selected-count">0</span>)</button>
+      <button class="btn btn-secondary" id="btn-import-back" onclick="App.importGoBack()" style="display:none">← 上一步</button>
+      <button class="btn btn-secondary" id="btn-select-file" onclick="document.getElementById('import-file-input').click()">选择文件</button>
+      <button class="btn btn-primary" id="btn-confirm-import" onclick="App.importNextStep()" style="display:none">下一步 (<span id="import-selected-count">0</span>)</button>
     </div>
   </div>
 </div>
@@ -580,7 +601,7 @@ const App=(()=>{
     [...cards].reverse().forEach(c=>{
       const d=document.createElement('div');d.className='card-item';
       const bc=c.isNew?'badge-new':'badge-review',bt=c.isNew?'新词':'旧词',ic=c.images?c.images.length:0;
-      d.innerHTML=`<div class="card-item-info"><div><span class="card-item-word">${esc(c.word)}</span><span class="card-item-badge ${bc}">${bt}</span></div><div class="card-item-hint">${esc(c.hint||'')}</div>${ic?`<div class="card-item-images">${ic} 张图片</div>`:''}</div><div class="card-item-actions"><button class="card-item-edit" onclick="App.openEditDialog(${c.id})">✎</button><button class="card-item-delete" onclick="App.openDeleteDialog(${c.id})">✕</button></div>`;
+      d.innerHTML=`<div class="card-item-info"><div><span class="card-item-word">${esc(c.word)}</span><span class="card-item-badge ${bc}">${bt}</span></div><div class="card-item-hint">${esc(c.meaning||c.hint||'')}</div>${ic?`<div class="card-item-images">${ic} 张图片</div>`:''}</div><div class="card-item-actions"><button class="card-item-edit" onclick="App.openEditDialog(${c.id})">✎</button><button class="card-item-delete" onclick="App.openDeleteDialog(${c.id})">✕</button></div>`;
       el.appendChild(d)
     })
   }
@@ -865,9 +886,9 @@ const App=(()=>{
   function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();renderList();toast('已删除')}}
 
   /* 批量导入（从文本提取单词） */
-  let importWords=[],importPage=1,importPerPage=60,importAllWords=[];
+  let importWords=[],importPage=1,importPerPage=60,importAllWords=[],importStep=1,importHints={};
   function openImportDialog(){
-    importWords=[];importPage=1;importAllWords=[];
+    importWords=[];importPage=1;importAllWords=[];importStep=1;importHints={};
     document.getElementById('import-word-grid').innerHTML='';
     document.getElementById('import-empty-hint').style.display='block';
     document.getElementById('import-empty-hint').textContent='选择文本文件（.txt），系统会自动提取单词';
@@ -875,9 +896,13 @@ const App=(()=>{
     document.getElementById('import-pagebar').style.display='none';
     document.getElementById('btn-confirm-import').style.display='none';
     document.getElementById('import-file-input').value='';
+    document.getElementById('import-step1').style.display='block';
+    document.getElementById('import-step2').style.display='none';
+    document.getElementById('btn-select-file').style.display='inline-flex';
+    document.getElementById('btn-import-back').style.display='none';
     document.getElementById('import-dialog').style.display='flex';
   }
-  function closeImportDialog(){document.getElementById('import-dialog').style.display='none';importWords=[];importAllWords=[];importPage=1}
+  function closeImportDialog(){document.getElementById('import-dialog').style.display='none';importWords=[];importAllWords=[];importPage=1;importStep=1;importHints={}}
   function handleFileSelect(e){
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
@@ -917,7 +942,7 @@ const App=(()=>{
       tag.className='import-word-tag '+(item.isNew?'new':'existing');
       if(item.isNew&&importWords.includes(item.word))tag.classList.add('selected');
       tag.textContent=item.word;
-      if(item.isNew)tag.onclick=()=>selectWord(item.word);
+      if(item.isNew)tag.onclick=()=>toggleWordSelect(item.word);
       grid.appendChild(tag)
     });
     // 分页栏
@@ -929,8 +954,9 @@ const App=(()=>{
       document.getElementById('btn-next-page').disabled=importPage>=totalPages
     }else{pagebar.style.display='none'}
   }
-  function selectWord(word){
-    if(!importWords.includes(word))importWords.push(word);
+  function toggleWordSelect(word){
+    const idx=importWords.indexOf(word);
+    if(idx>=0)importWords.splice(idx,1);else importWords.push(word);
     updateImportState();renderWordGrid()
   }
   function toggleSelectAll(){
@@ -953,14 +979,93 @@ const App=(()=>{
     document.getElementById('import-stat').textContent=`${newCount} 个新词可选，已选 ${selectedCount} 个`;
     document.getElementById('import-selected-count').textContent=selectedCount;
     document.getElementById('btn-confirm-import').style.display=selectedCount>0?'block':'none';
+    document.getElementById('btn-confirm-import').innerHTML='下一步 (<span id="import-selected-count">'+selectedCount+'</span>)';
     // 全选按钮文字
     const newWords=importAllWords.filter(w=>w.isNew).map(w=>w.word);
     const allSelected=newWords.length>0&&newWords.every(w=>importWords.includes(w));
     document.getElementById('btn-select-all').textContent=allSelected?'取消全选':'全选'
   }
+  function importNextStep(){
+    if(importStep===1){
+      // 第一步 → 第二步：进入提示语编辑
+      if(!importWords.length)return;
+      importStep=2;
+      importWords.forEach(w=>{if(!(w in importHints))importHints[w]=''});
+      document.getElementById('import-step1').style.display='none';
+      document.getElementById('import-step2').style.display='block';
+      document.getElementById('btn-select-file').style.display='none';
+      document.getElementById('btn-confirm-import').style.display='none';
+      document.getElementById('btn-import-back').style.display='inline-flex';
+      document.getElementById('import-dialog-title')&&(document.querySelector('#import-dialog .modal-title').textContent='📝 编辑提示语');
+      renderHintList();
+    }else{
+      // 第二步 → 确认添加
+      confirmImport()
+    }
+  }
+  function importGoBack(){
+    if(importStep===2){
+      importStep=1;
+      // 保存当前输入的提示语
+      document.querySelectorAll('.import-hint-item').forEach(item=>{
+        const word=item.dataset.word;
+        const input=item.querySelector('.import-hint-input');
+        if(word&&input)importHints[word]=input.value;
+      });
+      document.getElementById('import-step1').style.display='block';
+      document.getElementById('import-step2').style.display='none';
+      document.getElementById('btn-select-file').style.display='inline-flex';
+      document.getElementById('btn-import-back').style.display='none';
+      document.querySelector('#import-dialog .modal-title').textContent='📥 从文本中提取单词';
+      document.getElementById('btn-confirm-import').style.display=importWords.length>0?'block':'none';
+      document.getElementById('btn-confirm-import').textContent='下一步 ('+importWords.length+')';
+      renderWordGrid()
+    }
+  }
+  function renderHintList(){
+    const list=document.getElementById('import-hint-list');
+    list.innerHTML='';
+    importWords.forEach(word=>{
+      const item=document.createElement('div');
+      item.className='import-hint-item';
+      item.dataset.word=word;
+      item.innerHTML=`<span class="import-hint-word">${esc(word)}</span><input type="text" class="import-hint-input" placeholder="输入英文提示语/例句（可留空）" maxlength="200" value="${esc(importHints[word]||'')}"><button class="import-hint-auto" onclick="App.autoGetExample(this,'${esc(word)}')">自动</button>`;
+      list.appendChild(item)
+    });
+    // 显示确认按钮
+    document.getElementById('btn-confirm-import').style.display='block';
+    document.getElementById('btn-confirm-import').innerHTML='确认添加 ('+importWords.length+')'
+  }
+  async function autoGetExample(btn,word){
+    btn.classList.add('loading');btn.textContent='...';
+    try{
+      const resp=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+      if(resp.ok){
+        const data=await resp.json();
+        const entry=data[0];
+        if(entry&&entry.meanings&&entry.meanings[0]&&entry.meanings[0].definitions&&entry.meanings[0].definitions[0]){
+          const def=entry.meanings[0].definitions[0];
+          if(def.example){
+            const input=btn.parentElement.querySelector('.import-hint-input');
+            if(input&&!input.value){input.value=def.example;importHints[word]=def.example}
+            btn.textContent='✓';setTimeout(()=>{btn.textContent='自动';btn.classList.remove('loading')},1000);return
+          }
+        }
+      }
+    }catch(e){}
+    btn.textContent='无';btn.classList.remove('loading');setTimeout(()=>{btn.textContent='自动'},1500)
+  }
   function confirmImport(){
+    // 保存提示语
+    if(importStep===2){
+      document.querySelectorAll('.import-hint-item').forEach(item=>{
+        const word=item.dataset.word;
+        const input=item.querySelector('.import-hint-input');
+        if(word&&input)importHints[word]=input.value
+      })
+    }
     if(!importWords.length)return;
-    const created=importWords.map(w=>Store.addCard(w,'',''));
+    const created=importWords.map(w=>Store.addCard(w,importHints[w]||'',''));
     const count=importWords.length;
     closeImportDialog();renderList();
     toast(`已添加 ${count} 个单词，正在自动搜索释义和图片...`);
@@ -1093,7 +1198,7 @@ const App=(()=>{
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 
-  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,selectWord,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning}
+  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,toggleWordSelect,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning,importNextStep,importGoBack,autoGetExample}
 })();
 </script>
 <audio id="tts-audio" style="display:none"></audio>
