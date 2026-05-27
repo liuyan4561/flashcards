@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>闪卡记忆</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- ========== 主页面 ========== -->
+  <div id="page-home" class="page active">
+    <div class="home-container">
+      <div class="home-logo">
+        <div class="logo-icon">🃏</div>
+        <h1 class="home-title">闪卡记忆</h1>
+        <p class="home-subtitle">高效背单词，科学记忆</p>
+      </div>
+      <div class="home-stats" id="home-stats">
+        <div class="stat-item">
+          <span class="stat-num" id="stat-total">0</span>
+          <span class="stat-label">总词数</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-new">0</span>
+          <span class="stat-label">新词</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-review">0</span>
+          <span class="stat-label">待复习</span>
+        </div>
+      </div>
+      <div class="home-buttons">
+        <button class="btn btn-primary btn-block" onclick="App.goToAdd()">
+          <span class="btn-icon">📝</span>
+          添加闪卡
+        </button>
+        <button class="btn btn-secondary btn-block" onclick="App.goToStudy()">
+          <span class="btn-icon">📖</span>
+          开始闪卡
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 添加闪卡页面 ========== -->
+  <div id="page-add" class="page">
+    <div class="page-header">
+      <button class="btn-back" onclick="App.goHome()">← 返回</button>
+      <h2 class="page-title">添加闪卡</h2>
+      <div class="header-right"></div>
+    </div>
+    <!-- 统计栏 -->
+    <div class="add-stats">
+      <div class="add-stat-item">
+        <span class="add-stat-num" id="add-total">0</span>
+        <span class="add-stat-label">总数</span>
+      </div>
+      <div class="add-stat-item">
+        <span class="add-stat-num" id="add-new">0</span>
+        <span class="add-stat-label">新词</span>
+      </div>
+      <div class="add-stat-item">
+        <span class="add-stat-num" id="add-old">0</span>
+        <span class="add-stat-label">旧词</span>
+      </div>
+    </div>
+    <!-- 闪卡列表 -->
+    <div class="card-list" id="card-list">
+      <div class="empty-hint" id="add-empty">还没有闪卡，点击右下角添加吧</div>
+    </div>
+    <!-- 浮动添加按钮 -->
+    <button class="fab" onclick="App.openAddDialog()">+</button>
+  </div>
+
+  <!-- ========== 添加闪卡弹窗 ========== -->
+  <div id="add-dialog" class="modal" style="display:none;">
+    <div class="modal-overlay" onclick="App.closeAddDialog()"></div>
+    <div class="modal-content">
+      <h3 class="modal-title" id="dialog-title">添加闪卡</h3>
+      <div class="form-group">
+        <label class="form-label">单词</label>
+        <input type="text" class="form-input" id="input-word" placeholder="输入英文单词" maxlength="50" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">提示语</label>
+        <input type="text" class="form-input" id="input-hint" placeholder="输入提示或助记" maxlength="100" autocomplete="off">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn btn-cancel" onclick="App.closeAddDialog()">取消</button>
+        <button class="btn btn-primary" id="btn-confirm-word" onclick="App.confirmWord()">确认单词</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 图片选择弹窗 ========== -->
+  <div id="image-dialog" class="modal" style="display:none;">
+    <div class="modal-overlay" onclick="App.closeImageDialog()"></div>
+    <div class="modal-content image-dialog-content">
+      <div class="image-dialog-header">
+        <button class="btn-text" onclick="App.closeImageDialog()">取消</button>
+        <h3 class="image-dialog-title">添加图片</h3>
+        <button class="btn-text btn-text-primary" id="btn-image-confirm" onclick="App.confirmImageSelection()">确定</button>
+      </div>
+      <div class="image-dialog-subtitle">
+        从闪卡图片库中选择图片，新图片将添加到现有图片中
+      </div>
+      <div class="image-search-grid" id="image-search-grid">
+        <!-- 动态填充 -->
+      </div>
+      <div class="image-dialog-footer">
+        <button class="btn btn-primary btn-block" onclick="App.refreshImages()">
+          <span>🔄</span> 换一批
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 开始闪卡页面 ========== -->
+  <div id="page-study" class="page">
+    <div class="page-header">
+      <button class="btn-back" onclick="App.confirmQuitStudy()">← 退出</button>
+      <h2 class="page-title" id="study-progress">0 / 0</h2>
+      <div class="header-right">
+        <span class="study-timer" id="study-timer">00:00</span>
+      </div>
+    </div>
+
+    <!-- 学习内容区 -->
+    <div class="study-area" id="study-area">
+      <!-- 无卡片提示 -->
+      <div class="empty-study" id="empty-study">
+        <div class="empty-icon">🎉</div>
+        <p>今日任务已完成！</p>
+        <p class="empty-sub">没有需要学习的闪卡</p>
+      </div>
+
+      <!-- 卡片展示 -->
+      <div class="study-card" id="study-card" style="display:none;">
+        <!-- 单词区域 -->
+        <div class="card-word-section">
+          <div class="card-word" id="study-word">apple</div>
+          <button class="btn-speak" id="btn-speak" onclick="App.playPronunciation()">
+            🔊
+          </button>
+        </div>
+        <div class="card-hint" id="study-hint">一种常见的水果</div>
+
+        <!-- 答案区域（初始隐藏） -->
+        <div class="card-answer-section" id="answer-section" style="display:none;">
+          <div class="card-image-wrapper">
+            <img class="card-image" id="study-image" src="" alt="">
+          </div>
+          <div class="card-meaning" id="study-meaning"></div>
+        </div>
+
+        <!-- 按钮区域 -->
+        <div class="card-actions">
+          <button class="btn btn-reveal" id="btn-reveal" onclick="App.revealAnswer()">查看答案</button>
+          <div class="feedback-buttons" id="feedback-buttons" style="display:none;">
+            <button class="btn btn-forgot" onclick="App.handleFeedback('forgot')">
+              <span class="feedback-icon">😕</span>
+              忘记了
+            </button>
+            <button class="btn btn-think" onclick="App.handleFeedback('think')">
+              <span class="feedback-icon">🤔</span>
+              想一想
+            </button>
+            <button class="btn btn-remembered" onclick="App.handleFeedback('remembered')">
+              <span class="feedback-icon">😊</span>
+              记住了
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 完成页面 -->
+    <div class="study-complete" id="study-complete" style="display:none;">
+      <div class="complete-icon">🎊</div>
+      <h2 class="complete-title">学习完成！</h2>
+      <div class="complete-stats">
+        <div class="complete-stat">
+          <span class="complete-num" id="complete-total">0</span>
+          <span class="complete-label">学习总数</span>
+        </div>
+        <div class="complete-stat">
+          <span class="complete-num" id="complete-forgot">0</span>
+          <span class="complete-label">忘记了</span>
+        </div>
+        <div class="complete-stat">
+          <span class="complete-num" id="complete-think">0</span>
+          <span class="complete-label">想一想</span>
+        </div>
+        <div class="complete-stat">
+          <span class="complete-num" id="complete-remembered">0</span>
+          <span class="complete-label">记住了</span>
+        </div>
+      </div>
+      <div class="complete-time">
+        <span class="time-label">用时</span>
+        <span class="time-value" id="complete-time">0 分钟</span>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="App.goHome()" style="margin-top: 32px;">返回首页</button>
+    </div>
+  </div>
+
+  <!-- ========== 退出确认弹窗 ========== -->
+  <div id="quit-dialog" class="modal" style="display:none;">
+    <div class="modal-overlay" onclick="App.closeQuitDialog()"></div>
+    <div class="modal-content modal-sm">
+      <h3 class="modal-title">确认退出</h3>
+      <p class="modal-text">退出后本次学习进度不会保存，确定要退出吗？</p>
+      <div class="modal-buttons">
+        <button class="btn btn-cancel" onclick="App.closeQuitDialog()">继续学习</button>
+        <button class="btn btn-danger" onclick="App.quitStudy()">确认退出</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 删除确认弹窗 ========== -->
+  <div id="delete-dialog" class="modal" style="display:none;">
+    <div class="modal-overlay" onclick="App.closeDeleteDialog()"></div>
+    <div class="modal-content modal-sm">
+      <h3 class="modal-title">确认删除</h3>
+      <p class="modal-text">删除后无法恢复，确定要删除这张闪卡吗？</p>
+      <div class="modal-buttons">
+        <button class="btn btn-cancel" onclick="App.closeDeleteDialog()">取消</button>
+        <button class="btn btn-danger" onclick="App.confirmDelete()">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 隐藏的文件输入（供图片弹窗本地添加使用） -->
+  <input type="file" id="file-input" accept="image/*" multiple style="display:none;" onchange="App.handleImageSelect(event)">
+
+  <script src="js/store.js"></script>
+  <script src="js/spaced-repetition.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

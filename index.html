@@ -49,7 +49,10 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
 .badge-new{background:#e6f7f3;color:#26C8AC}
 .badge-review{background:#fff7e6;color:#faad14}
 .card-item-images{font-size:12px;color:#bbb;margin-top:4px}
-.card-item-delete{background:none;border:none;font-size:20px;color:#ccc;cursor:pointer;padding:8px;flex-shrink:0}
+.card-item-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.card-item-edit{background:none;border:none;font-size:18px;color:#ccc;cursor:pointer;padding:8px}
+.card-item-edit:active{color:#26C8AC}
+.card-item-delete{background:none;border:none;font-size:20px;color:#ccc;cursor:pointer;padding:8px}
 .card-item-delete:active{color:#ff4d4f}
 .empty-hint{text-align:center;color:#ccc;font-size:14px;padding:60px 0}
 .fab{position:fixed;right:24px;bottom:32px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#26C8AC,#1AAE96);color:#fff;font-size:32px;border:none;box-shadow:0 4px 16px rgba(38,200,172,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;line-height:1}
@@ -84,7 +87,8 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
 @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .card-image-wrapper{width:100%;max-width:280px;height:200px;border-radius:12px;overflow:hidden;background:#f0f0f0;margin-bottom:16px;display:flex;align-items:center;justify-content:center}
 .card-image{max-width:100%;max-height:100%;object-fit:contain}
-.card-meaning{font-size:18px;color:#333;text-align:center;margin-bottom:32px;line-height:1.5}
+.card-meaning{font-size:18px;color:#333;text-align:center;margin-bottom:12px;line-height:1.5}
+.card-hint-sentence{font-size:15px;color:#666;text-align:center;margin-bottom:32px;font-style:italic;line-height:1.5;padding:0 16px}
 .card-actions{width:100%;display:flex;flex-direction:column;align-items:center}
 .btn-reveal{width:100%;max-width:280px;padding:14px;background:linear-gradient(135deg,#26C8AC,#1AAE96);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(38,200,172,.35);transition:all .2s}
 .btn-reveal:active{transform:scale(.97);opacity:.9}
@@ -201,12 +205,15 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
     <h3 class="modal-title">添加闪卡</h3>
     <div class="form-group">
       <label class="form-label">单词</label>
-      <input type="text" class="form-input" id="input-word" placeholder="输入英文单词" maxlength="50" autocomplete="off">
+      <input type="text" class="form-input" id="input-word" placeholder="输入英文单词" maxlength="50" autocomplete="off" onblur="App.autoFetchMeaning()">
     </div>
     <div class="form-group">
-      <label class="form-label">提示语（中文释义）</label>
-      <input type="text" class="form-input" id="input-hint" placeholder="输入提示或助记，也可留空自动查询" maxlength="100" autocomplete="off">
-      <div class="form-hint" id="hint-auto-tip" style="display:none">已自动查询释义，可修改</div>
+      <label class="form-label">提示语（英文句子）</label>
+      <input type="text" class="form-input" id="input-hint" placeholder="输入英文句子作为提示，例如单词使用场景" maxlength="100" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">中文释义 <span id="meaning-loading" style="display:none"><span class="loading-spinner" style="width:14px;height:14px;border-width:1.5px;vertical-align:middle;margin-left:4px"></span></span></label>
+      <input type="text" class="form-input" id="input-meaning" placeholder="输入单词后自动查询，也可手动填写" maxlength="200" autocomplete="off">
     </div>
     <div class="modal-buttons">
       <button class="btn btn-cancel" onclick="App.closeAddDialog()">取消</button>
@@ -313,6 +320,7 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
       <div class="card-answer-section" id="answer-section" style="display:none">
         <div class="card-image-wrapper"><img class="card-image" id="study-image" src="" alt=""></div>
         <div class="card-meaning" id="study-meaning"></div>
+        <div class="card-hint-sentence" id="study-hint-answer"></div>
       </div>
       <div class="card-actions">
         <button class="btn-reveal" id="btn-reveal" onclick="App.revealAnswer()">查看答案</button>
@@ -351,6 +359,35 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
   </div>
 </div>
 
+<!-- 编辑闪卡弹窗 -->
+<div id="edit-dialog" class="modal" style="display:none">
+  <div class="modal-overlay" onclick="App.closeEditDialog()"></div>
+  <div class="modal-content">
+    <h3 class="modal-title">编辑闪卡</h3>
+    <div class="form-group">
+      <label class="form-label">单词</label>
+      <input type="text" class="form-input" id="edit-word" placeholder="输入英文单词" maxlength="50" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">提示语（英文句子）</label>
+      <input type="text" class="form-input" id="edit-hint" placeholder="输入英文句子作为提示" maxlength="100" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">中文释义</label>
+      <input type="text" class="form-input" id="edit-meaning" placeholder="中文释义" maxlength="200" autocomplete="off">
+    </div>
+    <div class="form-group" style="margin-bottom:8px">
+      <label class="form-label">图片管理</label>
+      <div id="edit-images-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+      <button class="btn btn-secondary btn-block btn-small" onclick="App.editChangeImages()">📷 更换图片</button>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-cancel" onclick="App.closeEditDialog()">取消</button>
+      <button class="btn btn-primary" onclick="App.confirmEdit()">保存修改</button>
+    </div>
+  </div>
+</div>
+
 <!-- 删除确认 -->
 <div id="delete-dialog" class="modal" style="display:none">
   <div class="modal-overlay" onclick="App.closeDeleteDialog()"></div>
@@ -383,11 +420,12 @@ const Store=(()=>{
   return{
     getAllCards(){return load().cards},
     getCard(id){return load().cards.find(c=>c.id===id)||null},
-    addCard(word,hint,images=[]){const d=load();const c={id:d.nextId++,word:word.trim(),hint:hint.trim(),images,createdAt:Date.now(),isNew:true};d.cards.push(c);save(d);return c},
+    addCard(word,hint,meaning,images=[]){const d=load();const c={id:d.nextId++,word:word.trim(),hint:hint.trim(),meaning:(meaning||'').trim(),images,createdAt:Date.now(),isNew:true};d.cards.push(c);save(d);return c},
     deleteCard(id){const d=load();d.cards=d.cards.filter(c=>c.id!==id);save(d);const r=loadRec();delete r[id];saveRec(r)},
     getStats(){const d=load();const t=d.cards.length,n=d.cards.filter(c=>c.isNew).length;return{total:t,newCount:n,oldCount:t-n}},
     markAsOld(id){const d=load();const c=d.cards.find(c=>c.id===id);if(c&&c.isNew){c.isNew=false;save(d)}},
     updateCardImages(id,images){const d=load();const c=d.cards.find(c=>c.id===id);if(c){c.images=images;save(d)}},
+    updateCard(id,word,hint,meaning){const d=load();const c=d.cards.find(c=>c.id===id);if(c){c.word=word.trim();c.hint=hint.trim();c.meaning=(meaning||'').trim();save(d)}},
     getTodayReviewCards(){const cards=this.getAllCards().filter(c=>!c.isNew);const rec=loadRec();const now=Date.now();return cards.filter(c=>{const r=rec[c.id];if(!r)return true;return r.nextReview<=now})},
     getNewCards(){return this.getAllCards().filter(c=>c.isNew)},
     updateRecord(id,rec){const r=loadRec();r[id]=rec;saveRec(r)},
@@ -437,9 +475,31 @@ async function searchUnsplashImages(query,page=1,perPage=12){
   }
 }
 
-/* ===== 中文释义查询（免费词典 API） ===== */
+/* ===== 中文释义查询 ===== */
 async function lookupWord(word){
-  // 优先用免费词典 API
+  // 1. Google Translate 非官方 API（最稳定，返回中文）
+  try{
+    const resp=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(word)}`);
+    if(resp.ok){
+      const data=await resp.json();
+      if(data&&data[0]&&data[0][0]&&data[0][0][0]){
+        return data[0][0][0];
+      }
+    }
+  }catch(e){}
+
+  // 2. MyMemory 翻译 API
+  try{
+    const resp=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh-CN`);
+    if(resp.ok){
+      const data=await resp.json();
+      if(data.responseData&&data.responseData.translatedText){
+        return data.responseData.translatedText;
+      }
+    }
+  }catch(e){}
+
+  // 3. Free Dictionary API（只有英文释义，兜底）
   try{
     const resp=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
     if(resp.ok){
@@ -453,23 +513,11 @@ async function lookupWord(word){
           });
         });
       }
-      // 简化释义，取前2个
       if(meanings.length>0){
         return meanings.slice(0,2).join('；');
       }
     }
-  }catch(e){console.log('Dict API failed, trying fallback')}
-
-  // 备用：用 MyMemory 翻译 API（免费）
-  try{
-    const resp=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh-CN`);
-    if(resp.ok){
-      const data=await resp.json();
-      if(data.responseData&&data.responseData.translatedText){
-        return data.responseData.translatedText;
-      }
-    }
-  }catch(e){console.log('Translate API failed')}
+  }catch(e){}
 
   return '';
 }
@@ -477,7 +525,7 @@ async function lookupWord(word){
 /* ===== 主应用 ===== */
 const App=(()=>{
   let idx=0,study=[],t0=0,ti=null,pendingImgs=[],delId=null,stats={forgot:0,think:0,remembered:0};
-  let selUrls=[],curWord='',curHint='',unsplashPage=1,unsplashTotalPages=0;
+  let selUrls=[],curWord='',curHint='',curMeaning='',unsplashPage=1,unsplashTotalPages=0;
   let limitType='';
 
   function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active')}
@@ -532,7 +580,7 @@ const App=(()=>{
     [...cards].reverse().forEach(c=>{
       const d=document.createElement('div');d.className='card-item';
       const bc=c.isNew?'badge-new':'badge-review',bt=c.isNew?'新词':'旧词',ic=c.images?c.images.length:0;
-      d.innerHTML=`<div class="card-item-info"><div><span class="card-item-word">${esc(c.word)}</span><span class="card-item-badge ${bc}">${bt}</span></div><div class="card-item-hint">${esc(c.hint||'')}</div>${ic?`<div class="card-item-images">${ic} 张图片</div>`:''}</div><button class="card-item-delete" onclick="App.openDeleteDialog(${c.id})">✕</button>`;
+      d.innerHTML=`<div class="card-item-info"><div><span class="card-item-word">${esc(c.word)}</span><span class="card-item-badge ${bc}">${bt}</span></div><div class="card-item-hint">${esc(c.hint||'')}</div>${ic?`<div class="card-item-images">${ic} 张图片</div>`:''}</div><div class="card-item-actions"><button class="card-item-edit" onclick="App.openEditDialog(${c.id})">✎</button><button class="card-item-delete" onclick="App.openDeleteDialog(${c.id})">✕</button></div>`;
       el.appendChild(d)
     })
   }
@@ -541,32 +589,30 @@ const App=(()=>{
   function openAddDialog(){
     document.getElementById('input-word').value='';
     document.getElementById('input-hint').value='';
-    document.getElementById('hint-auto-tip').style.display='none';
+    document.getElementById('input-meaning').value='';
     document.getElementById('btn-confirm-word').disabled=false;
     document.getElementById('btn-confirm-word').textContent='确认单词';
-    pendingImgs=[];curWord='';curHint='';
+    pendingImgs=[];curWord='';curHint='';curMeaning='';
     document.getElementById('add-dialog').style.display='flex';
     setTimeout(()=>document.getElementById('input-word').focus(),100)
   }
-  function closeAddDialog(){document.getElementById('add-dialog').style.display='none';pendingImgs=[]}
+  function closeAddDialog(){document.getElementById('add-dialog').style.display='none';pendingImgs=[];curMeaning=''}
 
   async function confirmWord(){
     const w=document.getElementById('input-word').value.trim();
     if(!w){toast('请输入单词');return}
 
-    // 禁用按钮，显示加载
     const btn=document.getElementById('btn-confirm-word');
     btn.disabled=true;
     btn.textContent='查询中...';
 
-    const h=document.getElementById('input-hint').value.trim();
-
-    // 如果用户没有手动输入释义，自动查询
-    if(!h){
-      const meaning=await lookupWord(w);
-      if(meaning){
-        document.getElementById('input-hint').value=meaning;
-        document.getElementById('hint-auto-tip').style.display='block';
+    // 自动查询中文释义（如果 meaning 输入框为空）
+    let m=document.getElementById('input-meaning').value.trim();
+    if(!m){
+      const fetched=await lookupWord(w);
+      if(fetched){
+        m=fetched;
+        document.getElementById('input-meaning').value=m;
       }
     }
 
@@ -577,7 +623,22 @@ const App=(()=>{
     document.getElementById('add-dialog').style.display='none';
     curWord=w;
     curHint=document.getElementById('input-hint').value.trim();
+    curMeaning=m;
     openImgDialog()
+  }
+
+  async function autoFetchMeaning(){
+    const w=document.getElementById('input-word').value.trim();
+    if(!w)return;
+    const mEl=document.getElementById('input-meaning');
+    const loading=document.getElementById('meaning-loading');
+    if(mEl.value.trim())return;
+    loading.style.display='inline';
+    const meaning=await lookupWord(w);
+    loading.style.display='none';
+    if(meaning&&!mEl.value.trim()){
+      mEl.value=meaning;
+    }
   }
 
   /* 图片选择弹窗 */
@@ -651,7 +712,8 @@ const App=(()=>{
     }
     selUrls=[];
     updConfirmBtn();
-    loadUnsplashImages()
+    if(editId!==null)loadUnsplashImagesForEdit();
+    else loadUnsplashImages()
   }
 
   function addMoreImages(){document.getElementById('file-input').click()}
@@ -693,11 +755,108 @@ const App=(()=>{
   }
 
   function confirmImageSelection(){
-    pendingImgs=[...selUrls];
+    const imgs=[...selUrls];
     closeImgDialog();
-    Store.addCard(curWord,curHint,pendingImgs);
-    pendingImgs=[];renderList();
-    toast(selUrls.length>0?'添加成功':'已添加（无图片）')
+    if(editId!==null){
+      // 编辑模式：更新编辑中的图片
+      editImgs=imgs;
+      renderEditImages()
+    }else{
+      // 添加模式：创建新卡
+      pendingImgs=imgs;
+      Store.addCard(curWord,curHint,curMeaning,pendingImgs);
+      pendingImgs=[];curMeaning='';renderList();
+      toast(imgs.length>0?'添加成功':'已添加（无图片）')
+    }
+  }
+
+  /* 编辑 */
+  let editId=null,editImgs=[];
+  function openEditDialog(id){
+    editId=id;
+    const c=Store.getCard(id);
+    if(!c)return;
+    document.getElementById('edit-word').value=c.word;
+    document.getElementById('edit-hint').value=c.hint||'';
+    document.getElementById('edit-meaning').value=c.meaning||'';
+    editImgs=[...(c.images||[])];
+    renderEditImages();
+    document.getElementById('edit-dialog').style.display='flex';
+    setTimeout(()=>document.getElementById('edit-word').focus(),100)
+  }
+  function closeEditDialog(){document.getElementById('edit-dialog').style.display='none';editId=null;editImgs=[]}
+  function renderEditImages(){
+    const el=document.getElementById('edit-images-preview');
+    el.innerHTML='';
+    if(!editImgs.length){
+      el.innerHTML='<span style="font-size:13px;color:#ccc">暂无图片</span>';
+      return
+    }
+    editImgs.forEach((url,i)=>{
+      const wrap=document.createElement('div');
+      wrap.style.cssText='position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid #eee';
+      wrap.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover"><button onclick="App.removeEditImage(${i})" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>`;
+      el.appendChild(wrap)
+    })
+  }
+  function removeEditImage(i){
+    editImgs.splice(i,1);
+    renderEditImages()
+  }
+  function editChangeImages(){
+    // 复用图片选择弹窗
+    curWord=document.getElementById('edit-word').value.trim()||'word';
+    selUrls=[...editImgs];
+    document.getElementById('img-dialog-word-title').textContent='更换图片 — '+curWord;
+    document.getElementById('image-dialog').style.display='flex';
+    // 先展示已有图片
+    loadUnsplashImagesForEdit()
+  }
+  async function loadUnsplashImagesForEdit(){
+    const g=document.getElementById('image-search-grid');
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#999"><div class="loading-spinner" style="margin:0 auto 10px"></div><div>正在搜索图片...</div></div>';
+    const result=await searchUnsplashImages(curWord,1,12);
+    unsplashTotalPages=result?result.totalPages:0;
+    unsplashPage=1;
+    g.innerHTML='';
+    if(result&&result.images.length){
+      result.images.forEach((img)=>{
+        const item=document.createElement('div');
+        item.className='image-search-item img-loading-placeholder';
+        if(selUrls.includes(img.url))item.classList.add('selected');
+        item.dataset.url=img.url;
+        item.dataset.download=img.download;
+        item.innerHTML=`<img src="${img.thumb}" alt="" loading="lazy" onload="this.parentElement.classList.remove('img-loading-placeholder')"><div class="img-checkbox">✓</div>`;
+        item.onclick=()=>toggleImgSel(item,img.url);
+        g.appendChild(item)
+      })
+    }
+    // 也展示已有的 base64 图片
+    editImgs.forEach(url=>{
+      if(url.startsWith('data:')){
+        const item=document.createElement('div');
+        item.className='image-search-item selected';
+        item.dataset.url=url;
+        item.dataset.local=url;
+        item.innerHTML=`<img src="${url}" alt=""><div class="img-checkbox">✓</div>`;
+        item.onclick=()=>{
+          const idx=selUrls.indexOf(url);
+          if(idx>=0){selUrls.splice(idx,1);item.classList.remove('selected');item.querySelector('.img-checkbox').style.display='none'}
+          updConfirmBtn()
+        };
+        g.appendChild(item)
+      }
+    });
+    renderLocalAddBtn(g);
+    updConfirmBtn()
+  }
+  function confirmEdit(){
+    if(editId===null)return;
+    const w=document.getElementById('edit-word').value.trim();
+    if(!w){toast('单词不能为空');return}
+    Store.updateCard(editId,w,document.getElementById('edit-hint').value.trim(),document.getElementById('edit-meaning').value.trim());
+    Store.updateCardImages(editId,editImgs);
+    closeEditDialog();renderList();toast('修改已保存')
   }
 
   /* 删除 */
@@ -802,11 +961,26 @@ const App=(()=>{
   }
   function confirmImport(){
     if(!importWords.length)return;
-    const created=importWords.map(w=>Store.addCard(w,''));
+    const created=importWords.map(w=>Store.addCard(w,'',''));
     const count=importWords.length;
     closeImportDialog();renderList();
-    toast(`已添加 ${count} 个单词，正在自动搜索图片...`);
+    toast(`已添加 ${count} 个单词，正在自动搜索释义和图片...`);
+    autoFetchMeanings(created);
     autoFetchImages(created)
+  }
+  async function autoFetchMeanings(cards){
+    let success=0;
+    for(const card of cards){
+      try{
+        const meaning=await lookupWord(card.word);
+        if(meaning){
+          Store.updateCard(card.id,card.word,card.hint,meaning);
+          success++
+        }
+        await new Promise(r=>setTimeout(r,300))
+      }catch(e){}
+    }
+    if(success>0){renderList()}
   }
   async function autoFetchImages(cards){
     let success=0;
@@ -830,7 +1004,7 @@ const App=(()=>{
     const c=study[idx];
     document.getElementById('study-area').style.display='flex';document.getElementById('empty-study').style.display='none';document.getElementById('study-card').style.display='flex';document.getElementById('study-complete').style.display='none';
     document.getElementById('study-progress').textContent=`${idx+1} / ${study.length}`;
-    document.getElementById('study-word').textContent=c.word;document.getElementById('study-hint').textContent=c.hint||'';
+    document.getElementById('study-word').textContent=c.word;document.getElementById('study-hint').textContent='';
     document.getElementById('answer-section').style.display='none';document.getElementById('btn-reveal').style.display='block';document.getElementById('feedback-buttons').style.display='none';
     const sc=document.getElementById('study-card');sc.classList.remove('card-slide-in');void sc.offsetWidth;sc.classList.add('card-slide-in');
     setTimeout(play,300)
@@ -839,7 +1013,12 @@ const App=(()=>{
     const c=study[idx];document.getElementById('btn-reveal').style.display='none';document.getElementById('feedback-buttons').style.display='flex';
     const imgEl=document.getElementById('study-image'),wrapper=document.querySelector('.card-image-wrapper');
     if(c.images&&c.images.length>0){imgEl.src=c.images[Math.floor(Math.random()*c.images.length)];imgEl.style.display='block';wrapper.style.display='flex'}else{imgEl.style.display='none';wrapper.style.display='none'}
-    document.getElementById('study-meaning').textContent=c.hint||'（无释义）';document.getElementById('answer-section').style.display='flex'
+    // 中文释义
+    document.getElementById('study-meaning').textContent=c.meaning||'（暂无释义）';
+    // 英文提示句子
+    const hintAnswerEl=document.getElementById('study-hint-answer');
+    if(c.hint){hintAnswerEl.textContent=c.hint;hintAnswerEl.style.display='block'}else{hintAnswerEl.style.display='none'}
+    document.getElementById('answer-section').style.display='flex'
   }
   function handleFeedback(fb){
     const c=study[idx];stats[fb]++;
@@ -915,7 +1094,7 @@ const App=(()=>{
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 
-  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,toggleWordSelect,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit}
+  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,toggleWordSelect,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning}
 })();
 </script>
 <audio id="tts-audio" style="display:none"></audio>
