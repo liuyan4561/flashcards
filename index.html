@@ -779,15 +779,13 @@ const App=(()=>{
     const imgs=[...selUrls];
     closeImgDialog();
     if(editId!==null){
-      // 编辑模式：更新编辑中的图片
       editImgs=imgs;
       renderEditImages()
     }else{
-      // 添加模式：创建新卡
       pendingImgs=imgs;
       Store.addCard(curWord,curHint,curMeaning,pendingImgs);
-      pendingImgs=[];curMeaning='';renderList();
-      toast(imgs.length>0?'添加成功':'已添加（无图片）')
+      pendingImgs=[];curMeaning='';
+      setTimeout(()=>{renderList();toast(imgs.length>0?'添加成功':'已添加（无图片）')},50)
     }
   }
 
@@ -883,7 +881,7 @@ const App=(()=>{
   /* 删除 */
   function openDeleteDialog(id){delId=id;document.getElementById('delete-dialog').style.display='flex'}
   function closeDeleteDialog(){document.getElementById('delete-dialog').style.display='none';delId=null}
-  function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();renderList();toast('已删除')}}
+  function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();setTimeout(()=>{renderList();toast('已删除')},50)}}
 
   /* 批量导入（从文本提取单词） */
   let importWords=[],importPage=1,importPerPage=60,importAllWords=[],importStep=1,importHints={};
@@ -924,8 +922,8 @@ const App=(()=>{
       document.getElementById('btn-confirm-import').style.display='none';
       return
     }
-    // 默认全选新词
-    importWords=importAllWords.filter(w=>w.isNew).map(w=>w.word);
+    // 不默认全选，让用户手动选择
+    importWords=[];
     document.getElementById('import-empty-hint').style.display='none';
     document.getElementById('import-toolbar').style.display='flex';
     renderWordGrid();
@@ -1174,9 +1172,21 @@ const App=(()=>{
   function fallbackTTS(word){
     let audio=document.getElementById('tts-audio');
     if(!audio){audio=document.createElement('audio');audio.id='tts-audio';audio.style.display='none';document.body.appendChild(audio)}
-    // 国内用 translate.google.cn 更稳定
+    // 方案1: translate.google.cn
     audio.src='https://translate.google.cn/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q='+encodeURIComponent(word);
-    audio.play().catch(()=>toast('发音失败'));
+    audio.play().catch(()=>{
+      // 方案2: translate.googleapis.com
+      audio.src='https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q='+encodeURIComponent(word);
+      audio.play().catch(()=>{
+        // 方案3: 用 SpeechSynthesis 再试一次
+        try{
+          speechSynthesis.cancel();
+          const u=new SpeechSynthesisUtterance(word);
+          u.lang='en-US';u.rate=0.9;
+          speechSynthesis.speak(u)
+        }catch(e){toast('发音失败，请检查网络')}
+      })
+    })
   }
 
   /* 工具 */
