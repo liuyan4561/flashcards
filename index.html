@@ -917,7 +917,7 @@ const App=(()=>{
       tag.className='import-word-tag '+(item.isNew?'new':'existing');
       if(item.isNew&&importWords.includes(item.word))tag.classList.add('selected');
       tag.textContent=item.word;
-      if(item.isNew)tag.onclick=()=>toggleWordSelect(item.word);
+      if(item.isNew)tag.onclick=()=>selectWord(item.word);
       grid.appendChild(tag)
     });
     // 分页栏
@@ -929,9 +929,8 @@ const App=(()=>{
       document.getElementById('btn-next-page').disabled=importPage>=totalPages
     }else{pagebar.style.display='none'}
   }
-  function toggleWordSelect(word){
-    const idx=importWords.indexOf(word);
-    if(idx>=0)importWords.splice(idx,1);else importWords.push(word);
+  function selectWord(word){
+    if(!importWords.includes(word))importWords.push(word);
     updateImportState();renderWordGrid()
   }
   function toggleSelectAll(){
@@ -1094,7 +1093,7 @@ const App=(()=>{
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 
-  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,toggleWordSelect,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning}
+  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,selectWord,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning}
 })();
 </script>
 <audio id="tts-audio" style="display:none"></audio>
