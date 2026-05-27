@@ -82,7 +82,10 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
 .card-word{font-size:32px;font-weight:700;color:#333}
 .btn-speak{width:44px;height:44px;border-radius:50%;background:#f0faf7;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .btn-speak:active{background:#d6f3ec;transform:scale(.92)}
-.card-hint{font-size:14px;color:#999;margin-bottom:32px;text-align:center;min-height:20px}
+.card-hint{font-size:14px;color:#26C8AC;margin-bottom:8px;text-align:center;min-height:20px;font-weight:500}
+.card-interactive-hint{font-size:16px;color:#333;text-align:center;margin-bottom:24px;padding:12px 16px;background:#f0faf7;border-radius:12px;line-height:1.6;min-height:48px}
+.btn-refresh-hint{background:none;border:1px solid #26C8AC;color:#26C8AC;border-radius:16px;padding:4px 14px;font-size:13px;cursor:pointer;margin-bottom:20px;transition:all .2s}
+.btn-refresh-hint:active{background:#26C8AC;color:#fff}
 .card-answer-section{width:100%;display:flex;flex-direction:column;align-items:center;animation:fadeInUp .3s ease}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .card-image-wrapper{width:100%;max-width:280px;height:200px;border-radius:12px;overflow:hidden;background:#f0f0f0;margin-bottom:16px;display:flex;align-items:center;justify-content:center}
@@ -220,10 +223,6 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
       <input type="text" class="form-input" id="input-word" placeholder="输入英文单词" maxlength="50" autocomplete="off" onblur="App.autoFetchMeaning()">
     </div>
     <div class="form-group">
-      <label class="form-label">提示语（英文句子）</label>
-      <input type="text" class="form-input" id="input-hint" placeholder="输入英文句子作为提示，例如单词使用场景" maxlength="100" autocomplete="off">
-    </div>
-    <div class="form-group">
       <label class="form-label">中文释义 <span id="meaning-loading" style="display:none"><span class="loading-spinner" style="width:14px;height:14px;border-width:1.5px;vertical-align:middle;margin-left:4px"></span></span></label>
       <input type="text" class="form-input" id="input-meaning" placeholder="输入单词后自动查询，也可手动填写" maxlength="200" autocomplete="off">
     </div>
@@ -259,8 +258,6 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
   <div class="modal-overlay" onclick="App.closeImportDialog()"></div>
   <div class="modal-content import-dialog-wide">
     <h3 class="modal-title">📥 从文本中提取单词</h3>
-<!-- 第一步：选词 -->
-    <div id="import-step1">
       <div class="import-info">上传动画片台词或英文文本，自动提取单词。白色单词可点击选择，灰色为已添加的单词。</div>
       <div class="import-toolbar" id="import-toolbar" style="display:none">
         <span class="import-stat" id="import-stat">0 个新词可选</span>
@@ -274,17 +271,10 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
         <span class="import-page-info" id="import-page-info">1 / 1</span>
         <button class="btn btn-small" onclick="App.nextPage()" id="btn-next-page">下一页</button>
       </div>
-    </div>
-    <!-- 第二步：编辑提示语 -->
-    <div id="import-step2" style="display:none">
-      <div class="import-info">为选中的单词添加英文提示语（例句），也可留空。点击「自动」可获取例句。</div>
-      <div class="import-hint-list" id="import-hint-list"></div>
-    </div>
     <div class="modal-buttons">
       <button class="btn btn-cancel" onclick="App.closeImportDialog()">取消</button>
-      <button class="btn btn-secondary" id="btn-import-back" onclick="App.importGoBack()" style="display:none">← 上一步</button>
       <button class="btn btn-secondary" id="btn-select-file" onclick="document.getElementById('import-file-input').click()">选择文件</button>
-      <button class="btn btn-primary" id="btn-confirm-import" onclick="App.importNextStep()" style="display:none">下一步 (<span id="import-selected-count">0</span>)</button>
+      <button class="btn btn-primary" id="btn-confirm-import" onclick="App.importNextStep()" style="display:none">确认添加 (0)</button>
     </div>
   </div>
 </div>
@@ -338,10 +328,11 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
         <button class="btn-speak" onclick="App.playPronunciation()">🔊</button>
       </div>
       <div class="card-hint" id="study-hint"></div>
+      <div class="card-interactive-hint" id="study-interactive-hint"></div>
+      <button class="btn-refresh-hint" id="btn-refresh-hint" onclick="App.refreshHint()" style="display:none">🔄 换一个</button>
       <div class="card-answer-section" id="answer-section" style="display:none">
         <div class="card-image-wrapper"><img class="card-image" id="study-image" src="" alt=""></div>
         <div class="card-meaning" id="study-meaning"></div>
-        <div class="card-hint-sentence" id="study-hint-answer"></div>
       </div>
       <div class="card-actions">
         <button class="btn-reveal" id="btn-reveal" onclick="App.revealAnswer()">查看答案</button>
@@ -388,10 +379,6 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
     <div class="form-group">
       <label class="form-label">单词</label>
       <input type="text" class="form-input" id="edit-word" placeholder="输入英文单词" maxlength="50" autocomplete="off">
-    </div>
-    <div class="form-group">
-      <label class="form-label">提示语（英文句子）</label>
-      <input type="text" class="form-input" id="edit-hint" placeholder="输入英文句子作为提示" maxlength="100" autocomplete="off">
     </div>
     <div class="form-group">
       <label class="form-label">中文释义</label>
@@ -441,12 +428,12 @@ const Store=(()=>{
   return{
     getAllCards(){return load().cards},
     getCard(id){return load().cards.find(c=>c.id===id)||null},
-    addCard(word,hint,meaning,images=[]){const d=load();const c={id:d.nextId++,word:word.trim(),hint:hint.trim(),meaning:(meaning||'').trim(),images,createdAt:Date.now(),isNew:true};d.cards.push(c);save(d);return c},
+    addCard(word,meaning,images=[]){const d=load();const c={id:d.nextId++,word:word.trim(),meaning:(meaning||'').trim(),images,createdAt:Date.now(),isNew:true};d.cards.push(c);save(d);return c},
     deleteCard(id){const d=load();d.cards=d.cards.filter(c=>c.id!==id);save(d);const r=loadRec();delete r[id];saveRec(r)},
     getStats(){const d=load();const t=d.cards.length,n=d.cards.filter(c=>c.isNew).length;return{total:t,newCount:n,oldCount:t-n}},
     markAsOld(id){const d=load();const c=d.cards.find(c=>c.id===id);if(c&&c.isNew){c.isNew=false;save(d)}},
     updateCardImages(id,images){const d=load();const c=d.cards.find(c=>c.id===id);if(c){c.images=images;save(d)}},
-    updateCard(id,word,hint,meaning){const d=load();const c=d.cards.find(c=>c.id===id);if(c){c.word=word.trim();c.hint=hint.trim();c.meaning=(meaning||'').trim();save(d)}},
+    updateCard(id,word,meaning){const d=load();const c=d.cards.find(c=>c.id===id);if(c){c.word=word.trim();c.meaning=(meaning||'').trim();save(d)}},
     getTodayReviewCards(){const cards=this.getAllCards().filter(c=>!c.isNew);const rec=loadRec();const now=Date.now();return cards.filter(c=>{const r=rec[c.id];if(!r)return true;return r.nextReview<=now})},
     getNewCards(){return this.getAllCards().filter(c=>c.isNew)},
     updateRecord(id,rec){const r=loadRec();r[id]=rec;saveRec(r)},
@@ -546,7 +533,7 @@ async function lookupWord(word){
 /* ===== 主应用 ===== */
 const App=(()=>{
   let idx=0,study=[],t0=0,ti=null,pendingImgs=[],delId=null,stats={forgot:0,think:0,remembered:0};
-  let selUrls=[],curWord='',curHint='',curMeaning='',unsplashPage=1,unsplashTotalPages=0;
+  let selUrls=[],curWord='',curMeaning='',unsplashPage=1,unsplashTotalPages=0;
   let limitType='';
 
   function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active')}
@@ -604,7 +591,7 @@ const App=(()=>{
     [...cards].reverse().forEach(c=>{
       const d=document.createElement('div');d.className='card-item';
       const bc=c.isNew?'badge-new':'badge-review',bt=c.isNew?'新词':'旧词',ic=c.images?c.images.length:0;
-      d.innerHTML=`<div class="card-item-info"><div><span class="card-item-word">${esc(c.word)}</span><span class="card-item-badge ${bc}">${bt}</span></div><div class="card-item-hint">${esc(c.meaning||c.hint||'')}</div>${ic?`<div class="card-item-images">${ic} 张图片</div>`:''}</div><div class="card-item-actions"><button class="card-item-edit" onclick="App.openEditDialog(${c.id})">✎</button><button class="card-item-delete" onclick="App.openDeleteDialog(${c.id})">✕</button></div>`;
+      d.innerHTML=`<div class="card-item-info"><div><span class="card-item-word">${esc(c.word)}</span><span class="card-item-badge ${bc}">${bt}</span></div><div class="card-item-hint">${esc(c.meaning||'')}</div>${ic?`<div class="card-item-images">${ic} 张图片</div>`:''}</div><div class="card-item-actions"><button class="card-item-edit" onclick="App.openEditDialog(${c.id})">✎</button><button class="card-item-delete" onclick="App.openDeleteDialog(${c.id})">✕</button></div>`;
       el.appendChild(d)
     })
   }
@@ -612,11 +599,10 @@ const App=(()=>{
   /* 添加弹窗 */
   function openAddDialog(){
     document.getElementById('input-word').value='';
-    document.getElementById('input-hint').value='';
     document.getElementById('input-meaning').value='';
     document.getElementById('btn-confirm-word').disabled=false;
     document.getElementById('btn-confirm-word').textContent='确认单词';
-    pendingImgs=[];curWord='';curHint='';curMeaning='';
+    pendingImgs=[];curWord='';curMeaning='';
     document.getElementById('add-dialog').style.display='flex';
     setTimeout(()=>document.getElementById('input-word').focus(),100)
   }
@@ -646,7 +632,6 @@ const App=(()=>{
     // 关闭添加弹窗，打开图片选择弹窗
     document.getElementById('add-dialog').style.display='none';
     curWord=w;
-    curHint=document.getElementById('input-hint').value.trim();
     curMeaning=m;
     openImgDialog()
   }
@@ -786,7 +771,7 @@ const App=(()=>{
       renderEditImages()
     }else{
       pendingImgs=imgs;
-      Store.addCard(curWord,curHint,curMeaning,pendingImgs);
+      Store.addCard(curWord,curMeaning,pendingImgs);
       pendingImgs=[];curMeaning='';
       renderList();toast(imgs.length>0?'添加成功':'已添加（无图片）')
     }
@@ -799,7 +784,6 @@ const App=(()=>{
     const c=Store.getCard(id);
     if(!c)return;
     document.getElementById('edit-word').value=c.word;
-    document.getElementById('edit-hint').value=c.hint||'';
     document.getElementById('edit-meaning').value=c.meaning||'';
     editImgs=[...(c.images||[])];
     renderEditImages();
@@ -876,7 +860,7 @@ const App=(()=>{
     if(editId===null)return;
     const w=document.getElementById('edit-word').value.trim();
     if(!w){toast('单词不能为空');return}
-    Store.updateCard(editId,w,document.getElementById('edit-hint').value.trim(),document.getElementById('edit-meaning').value.trim());
+    Store.updateCard(editId,w,document.getElementById('edit-meaning').value.trim());
     Store.updateCardImages(editId,editImgs);
     closeEditDialog();renderList();toast('修改已保存')
   }
@@ -887,9 +871,9 @@ const App=(()=>{
   function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();renderList();toast('已删除')}}
 
   /* 批量导入（从文本提取单词） */
-  let importWords=[],importPage=1,importPerPage=60,importAllWords=[],importStep=1,importHints={};
+  let importWords=[],importPage=1,importPerPage=60,importAllWords=[];
   function openImportDialog(){
-    importWords=[];importPage=1;importAllWords=[];importStep=1;importHints={};
+    importWords=[];importPage=1;importAllWords=[];
     document.getElementById('import-word-grid').innerHTML='';
     document.getElementById('import-empty-hint').style.display='block';
     document.getElementById('import-empty-hint').textContent='选择文本文件（.txt），系统会自动提取单词';
@@ -897,13 +881,11 @@ const App=(()=>{
     document.getElementById('import-pagebar').style.display='none';
     document.getElementById('btn-confirm-import').style.display='none';
     document.getElementById('import-file-input').value='';
-    document.getElementById('import-step1').style.display='block';
-    document.getElementById('import-step2').style.display='none';
+    document.getElementById('import-word-grid').innerHTML='';
     document.getElementById('btn-select-file').style.display='inline-flex';
-    document.getElementById('btn-import-back').style.display='none';
     document.getElementById('import-dialog').style.display='flex';
   }
-  function closeImportDialog(){document.getElementById('import-dialog').style.display='none';importWords=[];importAllWords=[];importPage=1;importStep=1;importHints={}}
+  function closeImportDialog(){document.getElementById('import-dialog').style.display='none';importWords=[];importAllWords=[];importPage=1}
   function handleFileSelect(e){
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
@@ -980,93 +962,17 @@ const App=(()=>{
     document.getElementById('import-stat').textContent=`${newCount} 个新词可选，已选 ${selectedCount} 个`;
     document.getElementById('import-selected-count').textContent=selectedCount;
     document.getElementById('btn-confirm-import').style.display=selectedCount>0?'block':'none';
-    document.getElementById('btn-confirm-import').innerHTML='下一步 (<span id="import-selected-count">'+selectedCount+'</span>)';
+    document.getElementById('btn-confirm-import').textContent='确认添加 ('+selectedCount+')';
     // 全选按钮文字
     const newWords=importAllWords.filter(w=>w.isNew).map(w=>w.word);
     const allSelected=newWords.length>0&&newWords.every(w=>importWords.includes(w));
     document.getElementById('btn-select-all').textContent=allSelected?'取消全选':'全选'
   }
-  function importNextStep(){
-    if(importStep===1){
-      // 第一步 → 第二步：进入提示语编辑
-      if(!importWords.length)return;
-      importStep=2;
-      importWords.forEach(w=>{if(!(w in importHints))importHints[w]=''});
-      document.getElementById('import-step1').style.display='none';
-      document.getElementById('import-step2').style.display='block';
-      document.getElementById('btn-select-file').style.display='none';
-      document.getElementById('btn-confirm-import').style.display='none';
-      document.getElementById('btn-import-back').style.display='inline-flex';
-      document.getElementById('import-dialog-title')&&(document.querySelector('#import-dialog .modal-title').textContent='📝 编辑提示语');
-      renderHintList();
-    }else{
-      // 第二步 → 确认添加
-      confirmImport()
-    }
-  }
-  function importGoBack(){
-    if(importStep===2){
-      importStep=1;
-      // 保存当前输入的提示语
-      document.querySelectorAll('.import-hint-item').forEach(item=>{
-        const word=item.dataset.word;
-        const input=item.querySelector('.import-hint-input');
-        if(word&&input)importHints[word]=input.value;
-      });
-      document.getElementById('import-step1').style.display='block';
-      document.getElementById('import-step2').style.display='none';
-      document.getElementById('btn-select-file').style.display='inline-flex';
-      document.getElementById('btn-import-back').style.display='none';
-      document.querySelector('#import-dialog .modal-title').textContent='📥 从文本中提取单词';
-      document.getElementById('btn-confirm-import').style.display=importWords.length>0?'block':'none';
-      document.getElementById('btn-confirm-import').textContent='下一步 ('+importWords.length+')';
-      renderWordGrid()
-    }
-  }
-  function renderHintList(){
-    const list=document.getElementById('import-hint-list');
-    list.innerHTML='';
-    importWords.forEach(word=>{
-      const item=document.createElement('div');
-      item.className='import-hint-item';
-      item.dataset.word=word;
-      item.innerHTML=`<span class="import-hint-word">${esc(word)}</span><input type="text" class="import-hint-input" placeholder="输入英文提示语/例句（可留空）" maxlength="200" value="${esc(importHints[word]||'')}"><button class="import-hint-auto" onclick="App.autoGetExample(this,'${esc(word)}')">自动</button>`;
-      list.appendChild(item)
-    });
-    // 显示确认按钮
-    document.getElementById('btn-confirm-import').style.display='block';
-    document.getElementById('btn-confirm-import').innerHTML='确认添加 ('+importWords.length+')'
-  }
-  async function autoGetExample(btn,word){
-    btn.classList.add('loading');btn.textContent='...';
-    try{
-      const resp=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-      if(resp.ok){
-        const data=await resp.json();
-        const entry=data[0];
-        if(entry&&entry.meanings&&entry.meanings[0]&&entry.meanings[0].definitions&&entry.meanings[0].definitions[0]){
-          const def=entry.meanings[0].definitions[0];
-          if(def.example){
-            const input=btn.parentElement.querySelector('.import-hint-input');
-            if(input&&!input.value){input.value=def.example;importHints[word]=def.example}
-            btn.textContent='✓';setTimeout(()=>{btn.textContent='自动';btn.classList.remove('loading')},1000);return
-          }
-        }
-      }
-    }catch(e){}
-    btn.textContent='无';btn.classList.remove('loading');setTimeout(()=>{btn.textContent='自动'},1500)
-  }
+  function importNextStep(){confirmImport()}
+  function importGoBack(){}
   function confirmImport(){
-    // 保存提示语
-    if(importStep===2){
-      document.querySelectorAll('.import-hint-item').forEach(item=>{
-        const word=item.dataset.word;
-        const input=item.querySelector('.import-hint-input');
-        if(word&&input)importHints[word]=input.value
-      })
-    }
     if(!importWords.length)return;
-    const created=importWords.map(w=>Store.addCard(w,importHints[w]||'',''));
+    const created=importWords.map(w=>Store.addCard(w,''));
     const count=importWords.length;
     closeImportDialog();renderList();
     toast(`已添加 ${count} 个单词，正在自动搜索释义和图片...`);
@@ -1079,7 +985,7 @@ const App=(()=>{
       try{
         const meaning=await lookupWord(card.word);
         if(meaning){
-          Store.updateCard(card.id,card.word,card.hint,meaning);
+          Store.updateCard(card.id,card.word,meaning);
           success++
         }
         await new Promise(r=>setTimeout(r,300))
@@ -1103,6 +1009,258 @@ const App=(()=>{
     else{toast('图片搜索未找到结果')}
   }
 
+  /* ===== 自动提示语生成系统 ===== */
+  // 根据中文释义智能分类，按3种方法随机生成适合学龄前儿童的互动提示词
+  let currentHint='';
+
+  const HINT_CATEGORIES={
+    animal:{
+      keywords:['动物','狗','猫','鸟','鱼','马','牛','羊','猪','鸡','鸭','兔','鼠','蛇','猴','象','狮','虎','熊','狼','鹿','狐','蛙','蝶','蜂','虫','蚂蚁','蜘蛛','鲨','鲸','海豚','龟','鳄','企鹅','鹦鹉','鸽子','鹰','孔雀','斑马','长颈鹿','犀牛','河马','松鼠','刺猬','蝙蝠','螃蟹','虾','章鱼','蜗牛','蚯蚓','瓢虫','蜻蜓','蚕','骆驼','壁虎','蜥蜴','猫头鹰','天鹅','燕子','麻雀','乌鸦','知了','萤火虫','恐龙'],
+      sounds:{dog:'Woof',cat:'Meow',chicken:'Cluck',duck:'Quack',pig:'Oink',cow:'Moo',sheep:'Baa',horse:'Neigh',frog:'Ribbit',bird:'Tweet',lion:'Roar',bee:'Buzz',mouse:'Squeak',owl:'Hoo',snake:'Hiss',crow:'Caw',wolf:'Howl',rooster:'Cock-a-doodle-doo',donkey:'Hee-haw',goose:'Honk',turkey:'Gobble',cricket:'Chirp',elephant:'Trumpet'},
+      templates:[
+        (w,m,s)=>s?`Can you make the ${s} sound? 🎵`:`Can you make the sound? 🎵`,
+        (w,m,s)=>`Show me how a ${w} moves! 🐾`,
+        (w,m,s)=>`What does a ${w} say? Let me hear it!`,
+        (w,m,s)=>`Can you walk like a ${w}? 🚶`,
+        (w,m,s)=>`If you were a ${w}, what would you do?`,
+        (w,m,s)=>`Let's pretend! You are a ${w}! 🎭`,
+        (w,m,s)=>s?`Does a ${w} say "${s}" or something else?`:`What sound does a ${w} make?`,
+        (w,m,s)=>`Can you draw a ${w} in the air? ✏️`,
+      ]
+    },
+    action:{
+      keywords:['跑','跳','走','飞','游','爬','坐','站','睡','吃','喝','唱','哭','笑','看','听','写','读','画','打','拍','踢','扔','接','推','拉','抱','举','指','点头','摇头','挥手','鼓掌','跳舞','游泳','做饭','洗','穿','骑','开','关','吹','咬','舔','闻','摸','藏','找'],
+      templates:[
+        (w,m)=>`Can you ${w}? Let's try! 🎬`,
+        (w,m)=>`Show me you can ${w}! Ready? 1, 2, 3, go!`,
+        (w,m)=>`Let's ${w} together! Ready, set, ${w}!`,
+        (w,m)=>`I say "${w}", you do it! Action!`,
+        (w,m)=>`Can you ${w} like a ${pick(['rabbit','bird','fish','superhero'])}? 🦸`,
+        (w,m)=>`Freeze! Can you ${w} slowly? Then fast?`,
+        (w,m)=>`Close your eyes... now ${w}!`,
+        (w,m)=>`${capitalize(w)}! ${capitalize(w)}! Can you ${w} to the door?`,
+      ]
+    },
+    color:{
+      keywords:['颜色','红','蓝','绿','黄','黑','白','紫','橙','粉','棕','灰','深','浅','色'],
+      templates:[
+        (w,m)=>`Can you find something ${w}? Look around! 👀`,
+        (w,m)=>`What color is your shirt? Is it ${w}?`,
+        (w,m)=>`Point to something ${w} in the room! 👉`,
+        (w,m)=>`Can you draw something ${w}? ✏️`,
+        (w,m)=>`What things are ${w}? Name three!`,
+        (w,m)=>`Is the sky ${w}? What about grass?`,
+        (w,m)=>`Can you make a ${w} face? 😊`,
+        (w,m)=>`Touch something ${w}! Quick! ⚡`,
+      ]
+    },
+    body:{
+      keywords:['身体','头','手','脚','眼','耳','鼻','嘴','牙','舌','发','脸','脖','肩','臂','腿','膝','指','趾','眉','唇','肘','腕','踝','胸','肚','背','腰','髋','臀','拇指','指甲','骨头','肌肉','皮肤','心脏'],
+      templates:[
+        (w,m)=>`Touch your ${w}! Where is it? 👈`,
+        (w,m)=>`Can you point to your ${w}? Show me!`,
+        (w,m)=>`How many ${w}s do you have? Let's count!`,
+        (w,m)=>`What can you do with your ${w}?`,
+        (w,m)=>`Wiggle your ${w}! Can you do it fast? 😄`,
+        (w,m)=>`Close your eyes... now point to your ${w}!`,
+        (w,m)=>`Can you cover your ${w} with your hand?`,
+        (w,m)=>`Let's sing: Head, Shoulders, Knees and... ${capitalize(w)}! 🎵`,
+      ]
+    },
+    food:{
+      keywords:['食物','吃','水果','蔬菜','苹果','香蕉','橙','葡萄','草莓','西瓜','桃','梨','樱桃','柠檬','菠萝','芒果','椰子','西瓜','米饭','面包','面条','鸡蛋','牛奶','水','果汁','蛋糕','饼干','糖','巧克力','冰淇淋','披萨','汉堡','三明治','奶酪','黄油','肉','鱼','虾','汤','茶','咖啡','早餐','午餐','晚餐','零食'],
+      templates:[
+        (w,m)=>`Do you like ${w}? Yummy or yucky? 😋`,
+        (w,m)=>`Can you pretend to eat a ${w}? Yum yum!`,
+        (w,m)=>`What color is a ${w}? What does it taste like?`,
+        (w,m)=>`Is a ${w} sweet or sour? 🤔`,
+        (w,m)=>`Can you count to 3 and pretend to bite a ${w}?`,
+        (w,m)=>`Show me how you eat a ${w}!`,
+        (w,m)=>`If you could have any ${w} right now, which one?`,
+        (w,m)=>`Mmm, ${w}! Is it crunchy or soft?`,
+      ]
+    },
+    number:{
+      keywords:['数字','一','二','三','四','五','六','七','八','九','十','百','千','零','1','2','3','4','5','6','7','8','9','10','11','12','20','50','100'],
+      templates:[
+        (w,m)=>`Can you show me ${m||w} fingers? ✋`,
+        (w,m)=>`Count to ${m||w}! Ready, go!`,
+        (w,m)=>`Clap ${m||w} times! Let me count with you! 👏`,
+        (w,m)=>`Can you find ${m||w} things in this room?`,
+        (w,m)=>`Jump ${m||w} times! 1, 2, 3... 🦘`,
+        (w,m)=>`What number comes after ${m||w}?`,
+        (w,m)=>`Show me ${m||w} with your fingers! 🤚`,
+        (w,m)=>`Can you count backwards from ${m||w}?`,
+      ]
+    },
+    nature:{
+      keywords:['自然','太阳','月亮','星星','天','云','雨','雪','风','花','草','树','叶','山','水','河','海','湖','石','沙','土','火','冰','雾','虹','春','夏','秋','冬','日','夜','白天','晚上','天气','晴','阴','雷','闪电'],
+      templates:[
+        (w,m)=>`Can you draw a ${w} in the air? ✏️`,
+        (w,m)=>`What does ${w} look like? Describe it!`,
+        (w,m)=>`Is there a ${w} outside right now? Let's look! 👀`,
+        (w,m)=>`If you were a ${w}, where would you go?`,
+        (w,m)=>`Can you make the sound of ${m||w}?`,
+        (w,m)=>`What color is a ${w}? 🎨`,
+        (w,m)=>`Let's pretend to be a ${w}!`,
+        (w,m)=>`Do you like ${m||w}? Why?`,
+      ]
+    },
+    family:{
+      keywords:['家庭','爸爸','妈妈','哥哥','姐姐','弟弟','妹妹','爷爷','奶奶','外公','外婆','叔叔','阿姨','宝贝','婴儿','家人','爸爸','妈妈','parent','mother','father','brother','sister','grandma','grandpa','family'],
+      templates:[
+        (w,m)=>`Who is your ${m||w}? Can you tell me? 👨‍👩‍👧`,
+        (w,m)=>`Can you pretend to be your ${m||w}? What would you say?`,
+        (w,m)=>`What does your ${m||w} like to do?`,
+        (w,m)=>`Give your ${m||w} a big hug! 🤗`,
+        (w,m)=>`Can you say "I love you" like your ${m||w}?`,
+        (w,m)=>`Who cooks in your family? Is it your ${m||w}?`,
+        (w,m)=>`What's your favorite thing to do with your ${m||w}?`,
+      ]
+    },
+    feeling:{
+      keywords:['感觉','开心','快乐','伤心','生气','害怕','惊讶','累','饿','渴','困','舒服','疼','冷','热','高兴','兴奋','无聊','紧张','勇敢','害羞','骄傲','担心','失望','着急','激动','放松'],
+      templates:[
+        (w,m)=>`Show me your "${m||w}" face! 😃`,
+        (w,m)=>`When do you feel ${m||w}? Tell me!`,
+        (w,m)=>`Can you act ${m||w}? Make me guess! 🎭`,
+        (w,m)=>`I feel ${m||w}! Can you guess why?`,
+        (w,m)=>`Show me ${m||w} with your body, no words! 🤫`,
+        (w,m)=>`What makes you feel ${m||w}?`,
+        (w,m)=>`If your friend feels ${m||w}, what would you do?`,
+      ]
+    },
+    place:{
+      keywords:['地方','学校','家','房间','厨房','浴室','卧室','客厅','花园','公园','超市','商店','医院','图书馆','教室','操场','机场','车站','餐厅','动物园','游乐场','海边','山上','城市','乡村'],
+      templates:[
+        (w,m)=>`Can you find something in this ${m||w}? 👀`,
+        (w,m)=>`What do you do at the ${m||w}?`,
+        (w,m)=>`Can you pretend we're at the ${m||w}? What do you see?`,
+        (w,m)=>`How do you get to the ${m||w}? Walk, drive or fly?`,
+        (w,m)=>`What's your favorite thing at the ${m||w}?`,
+        (w,m)=>`If you could build a ${m||w}, what would it look like?`,
+        (w,m)=>`Let's go to the ${m||w}! What do we need?`,
+      ]
+    },
+    clothing:{
+      keywords:['衣服','帽子','鞋','袜子','裤子','裙子','外套','衬衫','T恤','连衣裙','手套','围巾','领带','夹克','靴子','凉鞋','泳衣','睡衣','制服','背心','帽子','头饰','发夹'],
+      templates:[
+        (w,m)=>`Where do you wear a ${w}? Point to it! 👕`,
+        (w,m)=>`Can you pretend to put on a ${w}?`,
+        (w,m)=>`What color is your ${w}?`,
+        (w,m)=>`Touch your ${w}! Is it soft or hard?`,
+        (w,m)=>`Can you match the ${w} to the right place?`,
+        (w,m)=>`Show me how you wear a ${w}!`,
+        (w,m)=>`Is a ${w} for hot or cold weather? 🌡️`,
+      ]
+    },
+    vehicle:{
+      keywords:['车','汽车','公交','火车','飞机','船','自行车','摩托车','卡车','出租车','消防车','救护车','警车','出租车','地铁','轮船','热气球','火箭','飞船','拖拉机','挖掘机','直升机','滑板'],
+      templates:[
+        (w,m)=>`Can you pretend to drive a ${w}? Beep beep! 🚗`,
+        (w,m)=>`What sound does a ${w} make? Vroom!`,
+        (w,m)=>`Show me how a ${w} moves! Fast or slow?`,
+        (w,m)=>`How many wheels does a ${w} have?`,
+        (w,m)=>`Where can a ${w} go? On land, water or sky?`,
+        (w,m)=>`Let's play! You are a ${w} and I'm the road! 🛣️`,
+        (w,m)=>`Can you fly like a ${w}? Arms out! ✈️`,
+      ]
+    },
+    adjective:{
+      keywords:['大','小','高','矮','长','短','快','慢','新','旧','好','坏','多','少','胖','瘦','厚','薄','重','轻','宽','窄','深','浅','远','近','干净','脏','安静','吵闹','漂亮','可爱','聪明','强壮','柔软','硬','光滑','粗糙','温暖','凉爽','美味','臭','香'],
+      templates:[
+        (w,m)=>`Show me something ${w}! Look around! 👀`,
+        (w,m)=>`What is ${m||w}? Can you find one?`,
+        (w,m)=>`Is a elephant ${w}? How about a mouse? 🤔`,
+        (w,m)=>`Can you make a ${w} thing with your hands?`,
+        (w,m)=>`Walk ${w}ly! Then walk the opposite! 🚶`,
+        (w,m)=>`Name something ${w} in this room!`,
+        (w,m)=>`Is your hair ${w}? What about your shoes?`,
+        (w,m)=>`Show me BIG! Now show me ${m||w}! Compare!`,
+      ]
+    }
+  };
+
+  // 通用模板（无法分类时使用）
+  const GENERIC_TEMPLATES=[
+    (w,m)=>`Can you say "${w}"? Let me hear it! 🎤`,
+    (w,m)=>`What does "${w}" mean? Show me, don't tell me! 🤫`,
+    (w,m)=>`${capitalize(w)}! Can you use it in a game?`,
+    (w,m)=>`I say "${w}", you act it out! No Chinese! 🎭`,
+    (w,m)=>`Can you spell "${w}" with your body?`,
+    (w,m)=>`What rhymes with "${w}"? Or sounds like it?`,
+    (w,m)=>`Close your eyes... think about "${w}"... now tell me! 💭`,
+    (w,m)=>`Can you teach me "${w}"? You be the teacher! 👩‍🏫`,
+    (w,m)=>`Let's play! When I say "${w}", you freeze! ❄️`,
+    (w,m)=>`Can you draw "${w}" on my back with your finger? ✨`,
+  ];
+
+  // 二选一模板（特殊方法）
+  const CHOICE_TEMPLATES=[
+    (w,m)=>{const opp=pickOpposite(m);return opp?`Is it ${w} or ${opp}? 👈👉`:null},
+    (w,m)=>`True or false: A cat can ${w}? 🐱`,
+    (w,m)=>`Does a ${pick(['dog','cat','bird','fish'])} like ${w}? Yes or no?`,
+  ];
+
+  function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+  function capitalize(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
+
+  // 反义词映射
+  const OPPOSITES={big:'small',small:'big',hot:'cold',cold:'hot',wet:'dry',dry:'wet',fast:'slow',slow:'fast',tall:'short',short:'tall',long:'short',short:'long',heavy:'light',light:'heavy',loud:'quiet',quiet:'loud',happy:'sad',sad:'happy',clean:'dirty',dirty:'clean',open:'close',close:'open',up:'down',down:'up',old:'new',new:'old',hard:'soft',soft:'hard',full:'empty',empty:'full',day:'night',night:'day',boy:'girl',girl:'boy',yes:'no',no:'yes',good:'bad',bad:'good','大':'小','小':'大','高':'矮','矮':'高','快':'慢','慢':'快','热':'冷','冷':'热','湿':'干','干':'湿','重':'轻','轻':'重','安静':'吵闹','吵闹':'安静','干净':'脏','脏':'干净','新':'旧','旧':'新','开心':'伤心','伤心':'开心','开':'关','关':'开','上':'下','下':'上','满':'空','空':'满'};
+  function pickOpposite(meaning){
+    if(!meaning)return null;
+    const m=meaning.toLowerCase();
+    for(const[k,v]of Object.entries(OPPOSITES)){if(m.includes(k.toLowerCase()))return v}
+    return null
+  }
+
+  // 对中文释义进行分类
+  function categorize(meaning){
+    if(!meaning)return null;
+    for(const[cat,data]of Object.entries(HINT_CATEGORIES)){
+      for(const kw of data.keywords){
+        if(meaning.includes(kw))return cat
+      }
+    }
+    return null
+  }
+
+  // 获取动物叫声
+  function getAnimalSound(word){
+    const w=word.toLowerCase();
+    const sounds=HINT_CATEGORIES.animal.sounds;
+    if(sounds[w])return sounds[w];
+    for(const[k,v]of Object.entries(sounds)){if(w.includes(k)||k.includes(w))return v}
+    return null
+  }
+
+  // 核心函数：生成互动提示词
+  function generateHint(word,meaning){
+    const cat=categorize(meaning);
+    // 30% 概率使用二选一模板（增加多样性）
+    if(Math.random()<0.3){
+      const tmpl=pick(CHOICE_TEMPLATES);
+      const hint=tmpl(word,meaning);
+      if(hint)return hint;
+    }
+    if(cat&&cat!=='action'){
+      const data=HINT_CATEGORIES[cat];
+      const tmpl=pick(data.templates);
+      const sound=cat==='animal'?getAnimalSound(word):null;
+      return tmpl(word,meaning,sound)
+    }else if(cat==='action'){
+      return pick(HINT_CATEGORIES.action.templates)(word,meaning)
+    }else{
+      return pick(GENERIC_TEMPLATES)(word,meaning)
+    }
+  }
+
+  function refreshHint(){
+    const c=study[idx];if(!c)return;
+    currentHint=generateHint(c.word,c.meaning);
+    document.getElementById('study-interactive-hint').textContent=currentHint;
+  }
+
   /* 学习 */
   function showCard(){
     if(idx>=study.length){showComplete();return}
@@ -1111,6 +1269,11 @@ const App=(()=>{
     document.getElementById('study-progress').textContent=`${idx+1} / ${study.length}`;
     document.getElementById('study-word').textContent=c.word;document.getElementById('study-hint').textContent='';
     document.getElementById('answer-section').style.display='none';document.getElementById('btn-reveal').style.display='block';document.getElementById('feedback-buttons').style.display='none';
+    // 自动生成互动提示词
+    currentHint=generateHint(c.word,c.meaning);
+    document.getElementById('study-interactive-hint').textContent=currentHint;
+    document.getElementById('study-interactive-hint').style.display='block';
+    document.getElementById('btn-refresh-hint').style.display='inline-block';
     const sc=document.getElementById('study-card');sc.classList.remove('card-slide-in');void sc.offsetWidth;sc.classList.add('card-slide-in');
     setTimeout(play,300)
   }
@@ -1120,9 +1283,6 @@ const App=(()=>{
     if(c.images&&c.images.length>0){imgEl.src=c.images[Math.floor(Math.random()*c.images.length)];imgEl.style.display='block';wrapper.style.display='flex'}else{imgEl.style.display='none';wrapper.style.display='none'}
     // 中文释义
     document.getElementById('study-meaning').textContent=c.meaning||'（暂无释义）';
-    // 英文提示句子
-    const hintAnswerEl=document.getElementById('study-hint-answer');
-    if(c.hint){hintAnswerEl.textContent=c.hint;hintAnswerEl.style.display='block'}else{hintAnswerEl.style.display='none'}
     document.getElementById('answer-section').style.display='flex'
   }
   function handleFeedback(fb){
@@ -1242,7 +1402,7 @@ const App=(()=>{
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 
-  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,toggleWordSelect,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning,importNextStep,importGoBack,autoGetExample}
+  return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,toggleWordSelect,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning,importNextStep,importGoBack,refreshHint}
 })();
 </script>
 </body>
