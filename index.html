@@ -696,13 +696,34 @@ const App=(()=>{
   function quitStudy(){closeQuitDialog();stopTimer();goHome()}
 
   /* 发音（美音） */
+  let voicesLoaded=false, voices=[];
+  function loadVoices(){
+    if(!('speechSynthesis' in window))return;
+    voices=speechSynthesis.getVoices();
+    if(voices.length>0){voicesLoaded=true;return true}
+    return false
+  }
   function play(){
     const c=study[idx];if(!c)return;
-    if('speechSynthesis' in window){
-      speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(c.word);u.lang='en-US';u.rate=0.9;u.pitch=1;
-      const v=speechSynthesis.getVoices(),us=v.find(x=>x.lang==='en-US'&&/us|united states/i.test(x.name))||v.find(x=>x.lang==='en-US')||v.find(x=>x.lang.startsWith('en'));
-      if(us)u.voice=us;speechSynthesis.speak(u)
-    }
+    if(!('speechSynthesis' in window)){toast('当前浏览器不支持发音');return}
+    if(speechSynthesis.speaking)speechSynthesis.cancel();
+    const speak=()=>{
+      if(!voices.length) voices=speechSynthesis.getVoices();
+      const u=new SpeechSynthesisUtterance(c.word);
+      u.lang='en-US';u.rate=0.9;u.pitch=1;
+      const us=voices.find(x=>x.lang==='en-US'&&/us|united states/i.test(x.name))||voices.find(x=>x.lang==='en-US')||voices.find(x=>x.lang.startsWith('en'));
+      if(us)u.voice=us;
+      u.onerror=()=>toast('发音失败，请重试');
+      speechSynthesis.speak(u)
+    };
+    if(!voicesLoaded){
+      const v=speechSynthesis.getVoices();
+      if(v.length>0){voices=v;voicesLoaded=true;speak()}
+      else{
+        speechSynthesis.addEventListener('voiceschanged',function vc(){voices=speechSynthesis.getVoices();voicesLoaded=true;speechSynthesis.removeEventListener('voiceschanged',vc);speak()},{once:true});
+        setTimeout(speak,800)
+      }
+    }else{speak()}
   }
 
   /* 工具 */
@@ -712,7 +733,15 @@ const App=(()=>{
   /* 初始化 */
   function init(){
     updateHome();
-    if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.addEventListener('voiceschanged',()=>speechSynthesis.getVoices())}
+    if('speechSynthesis' in window){
+      loadVoices();
+      speechSynthesis.addEventListener('voiceschanged',()=>loadVoices());
+      // iOS需要用户手势才能获取语音，这里先尝试加载
+      document.addEventListener('click',function firstClick(){
+        loadVoices();
+        document.removeEventListener('click',firstClick)
+      },{once:true})
+    }
   }
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 
