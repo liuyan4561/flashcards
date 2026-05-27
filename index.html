@@ -428,7 +428,7 @@ const Store=(()=>{
   return{
     getAllCards(){return load().cards},
     getCard(id){return load().cards.find(c=>c.id===id)||null},
-    addCard(word,meaning,images=[]){const d=load();const c={id:d.nextId++,word:word.trim(),meaning:(meaning||'').trim(),images,createdAt:Date.now(),isNew:true};d.cards.push(c);save(d);return c},
+    addCard(word,meaning,images=[]){const d=load();const w=word.trim().toLowerCase();if(d.cards.some(c=>c.word.toLowerCase()===w))return null;const c={id:d.nextId++,word:word.trim(),meaning:(meaning||'').trim(),images,createdAt:Date.now(),isNew:true};d.cards.push(c);save(d);return c},
     deleteCard(id){const d=load();d.cards=d.cards.filter(c=>c.id!==id);save(d);const r=loadRec();delete r[id];saveRec(r)},
     getStats(){const d=load();const t=d.cards.length,n=d.cards.filter(c=>c.isNew).length;return{total:t,newCount:n,oldCount:t-n}},
     markAsOld(id){const d=load();const c=d.cards.find(c=>c.id===id);if(c&&c.isNew){c.isNew=false;save(d)}},
@@ -611,6 +611,8 @@ const App=(()=>{
   async function confirmWord(){
     const w=document.getElementById('input-word').value.trim();
     if(!w){toast('请输入单词');return}
+    // 检查是否已存在相同单词
+    if(Store.getAllCards().some(c=>c.word.toLowerCase()===w.toLowerCase())){toast('「'+w+'」已存在，不允许重复添加');return}
 
     const btn=document.getElementById('btn-confirm-word');
     btn.disabled=true;
@@ -972,10 +974,16 @@ const App=(()=>{
   function importGoBack(){}
   function confirmImport(){
     if(!importWords.length)return;
-    const created=importWords.map(w=>Store.addCard(w,''));
-    const count=importWords.length;
+    const existing=new Set(Store.getAllCards().map(c=>c.word.toLowerCase()));
+    const dup=importWords.filter(w=>existing.has(w.toLowerCase()));
+    const unique=importWords.filter(w=>!existing.has(w.toLowerCase()));
+    const created=unique.map(w=>Store.addCard(w,'')).filter(Boolean);
+    const count=unique.length;
     closeImportDialog();renderList();
-    toast(`已添加 ${count} 个单词，正在自动搜索释义和图片...`);
+    let msg=`已添加 ${count} 个单词`;
+    if(dup.length)msg+=`，${dup.length} 个已存在被跳过`;
+    msg+='，正在自动搜索释义和图片...';
+    toast(msg);
     autoFetchMeanings(created);
     autoFetchImages(created)
   }
