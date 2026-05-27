@@ -704,25 +704,35 @@ const App=(()=>{
   }
   function play(){
     const c=study[idx];if(!c)return;
-    if(!('speechSynthesis' in window)){toast('当前浏览器不支持发音');return}
-    // 先取消正在播放的
-    if(speechSynthesis.speaking||speechSynthesis.pending)speechSynthesis.cancel();
-    
-    // 确保语音已加载（同步尝试）
-    if(!voicesLoaded)loadVoices();
-    
-    const u=new SpeechSynthesisUtterance(c.word);
-    u.lang='en-US';
-    u.rate=0.9;
-    u.pitch=1;
-    u.volume=1;
-    // 优先选择美式英语语音
-    if(voices.length){
-      const us=voices.find(x=>x.lang==='en-US')||voices.find(x=>x.lang.startsWith('en'));
-      if(us)u.voice=us;
+    // 方法1：尝试 Web Speech API
+    if('speechSynthesis' in window){
+      try{
+        if(speechSynthesis.speaking||speechSynthesis.pending)speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(c.word);
+        u.lang='en-US';u.rate=0.9;u.pitch=1;u.volume=1;
+        const vl=speechSynthesis.getVoices();
+        const us=vl.find(x=>x.lang==='en-US')||vl.find(x=>x.lang.startsWith('en'));
+        if(us)u.voice=us;
+        let spoke=false;
+        u.onstart=()=>{spoke=true;};
+        u.onend=()=>{};
+        u.onerror=()=>{if(!spoke)fallbackTTS(c.word)};
+        speechSynthesis.speak(u);
+        // 超时检测：2秒后还没开始播放就用降级方案
+        setTimeout(()=>{if(!spoke&&!speechSynthesis.speaking)fallbackTTS(c.word)},2000);
+        return;
+      }catch(e){}
     }
-    u.onerror=()=>toast('发音失败，请重试');
-    speechSynthesis.speak(u);
+    // 方法2：Google Translate TTS 降级（安卓兼容）
+    fallbackTTS(c.word);
+  }
+
+  function fallbackTTS(word){
+    let audio=document.getElementById('tts-audio');
+    if(!audio){audio=document.createElement('audio');audio.id='tts-audio';audio.style.display='none';document.body.appendChild(audio)}
+    // 国内用 translate.google.cn 更稳定
+    audio.src='https://translate.google.cn/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q='+encodeURIComponent(word);
+    audio.play().catch(()=>toast('发音失败'));
   }
 
   /* 工具 */
@@ -747,5 +757,6 @@ const App=(()=>{
   return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit}
 })();
 </script>
+<audio id="tts-audio" style="display:none"></audio>
 </body>
 </html>
