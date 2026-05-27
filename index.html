@@ -206,7 +206,7 @@ html,body{width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"S
     <div class="add-stat-item"><span class="add-stat-num" id="add-new">0</span><span class="add-stat-label">新词</span></div>
     <div class="add-stat-item"><span class="add-stat-num" id="add-old">0</span><span class="add-stat-label">旧词</span></div>
   </div>
-  <div class="card-list" id="card-list"><div class="empty-hint" id="add-empty">还没有闪卡，点击右下角添加吧</div></div>
+  <div class="card-list" id="card-list"></div>
   <button class="fab" onclick="App.openAddDialog()">+</button>
 </div>
 
@@ -595,9 +595,12 @@ const App=(()=>{
     document.getElementById('add-total').textContent=s.total;
     document.getElementById('add-new').textContent=s.newCount;
     document.getElementById('add-old').textContent=s.oldCount;
-    const el=document.getElementById('card-list'),emp=document.getElementById('add-empty');
-    if(!cards.length){el.innerHTML='';el.appendChild(emp);emp.style.display='block';return}
-    emp.style.display='none';el.innerHTML='';
+    const el=document.getElementById('card-list');
+    el.innerHTML='';
+    if(!cards.length){
+      el.innerHTML='<div class="empty-hint">还没有闪卡，点击右下角添加吧</div>';
+      return;
+    }
     [...cards].reverse().forEach(c=>{
       const d=document.createElement('div');d.className='card-item';
       const bc=c.isNew?'badge-new':'badge-review',bt=c.isNew?'新词':'旧词',ic=c.images?c.images.length:0;
@@ -785,7 +788,7 @@ const App=(()=>{
       pendingImgs=imgs;
       Store.addCard(curWord,curHint,curMeaning,pendingImgs);
       pendingImgs=[];curMeaning='';
-      setTimeout(()=>{renderList();toast(imgs.length>0?'添加成功':'已添加（无图片）')},50)
+      renderList();toast(imgs.length>0?'添加成功':'已添加（无图片）')
     }
   }
 
@@ -881,7 +884,7 @@ const App=(()=>{
   /* 删除 */
   function openDeleteDialog(id){delId=id;document.getElementById('delete-dialog').style.display='flex'}
   function closeDeleteDialog(){document.getElementById('delete-dialog').style.display='none';delId=null}
-  function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();setTimeout(()=>{renderList();toast('已删除')},50)}}
+  function confirmDelete(){if(delId!==null){Store.deleteCard(delId);closeDeleteDialog();renderList();toast('已删除')}}
 
   /* 批量导入（从文本提取单词） */
   let importWords=[],importPage=1,importPerPage=60,importAllWords=[],importStep=1,importHints={};
@@ -1147,7 +1150,6 @@ const App=(()=>{
 
   async function play(){
     const c=study[idx];if(!c)return;
-    toast('正在播放...');
     // 方法1: Web Speech API（多数浏览器可用）
     const r1=await trySpeechAPI(c.word);
     if(r1)return;
