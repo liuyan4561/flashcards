@@ -1137,56 +1137,88 @@ const App=(()=>{
   function closeQuitDialog(){document.getElementById('quit-dialog').style.display='none'}
   function quitStudy(){closeQuitDialog();stopTimer();goHome()}
 
-  /* 发音（美音） */
+  /* 发音（美音） — 4级降级 */
   let voicesLoaded=false, voices=[];
   function loadVoices(){
     if(!('speechSynthesis' in window))return;
     voices=speechSynthesis.getVoices();
     if(voices.length>0){voicesLoaded=true}
   }
-  function play(){
+
+  async function play(){
     const c=study[idx];if(!c)return;
-    // 方法1：尝试 Web Speech API
-    if('speechSynthesis' in window){
+    toast('正在播放...');
+    // 方法1: Web Speech API（多数浏览器可用）
+    const r1=await trySpeechAPI(c.word);
+    if(r1)return;
+    // 方法2: dict.youdao.com MP3（国内可直连）
+    const r2=await tryAudioUrl('https://dict.youdao.com/dictvoice?audio='+encodeURIComponent(c.word)+'&type=2');
+    if(r2)return;
+    // 方法3: Sound of Text API（免费，无需 key）
+    const r3=await trySoundOfText(c.word);
+    if(r3)return;
+    // 方法4: 最后再试一次 SpeechSynthesis（无 voice 过滤）
+    try{
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(c.word);
+      u.lang='en-US';u.rate=0.8;u.volume=1;
+      speechSynthesis.speak(u);
+    }catch(e){toast('发音失败，请检查网络或音量')}
+  }
+
+  /* SpeechSynthesis Promise 封装 */
+  function trySpeechAPI(word){
+    return new Promise(resolve=>{
+      if(!('speechSynthesis' in window)){resolve(false);return}
       try{
         if(speechSynthesis.speaking||speechSynthesis.pending)speechSynthesis.cancel();
-        const u=new SpeechSynthesisUtterance(c.word);
+        const u=new SpeechSynthesisUtterance(word);
         u.lang='en-US';u.rate=0.9;u.pitch=1;u.volume=1;
         const vl=speechSynthesis.getVoices();
         const us=vl.find(x=>x.lang==='en-US')||vl.find(x=>x.lang.startsWith('en'));
         if(us)u.voice=us;
-        let spoke=false;
-        u.onstart=()=>{spoke=true;};
-        u.onend=()=>{};
-        u.onerror=()=>{if(!spoke)fallbackTTS(c.word)};
+        let resolved=false;
+        u.onstart=()=>{resolved=true;resolve(true)};
+        u.onerror=()=>{if(!resolved){resolved=true;resolve(false)}};
+        u.onend=()=>{if(!resolved){resolved=true;resolve(true)}};
         speechSynthesis.speak(u);
-        // 超时检测：2秒后还没开始播放就用降级方案
-        setTimeout(()=>{if(!spoke&&!speechSynthesis.speaking)fallbackTTS(c.word)},2000);
-        return;
-      }catch(e){}
-    }
-    // 方法2：Google Translate TTS 降级（安卓兼容）
-    fallbackTTS(c.word);
+        // 超时2秒判定失败
+        setTimeout(()=>{if(!resolved){resolved=true;resolve(false)}},2000);
+      }catch(e){resolve(false)}
+    })
   }
 
-  function fallbackTTS(word){
-    let audio=document.getElementById('tts-audio');
-    if(!audio){audio=document.createElement('audio');audio.id='tts-audio';audio.style.display='none';document.body.appendChild(audio)}
-    // 方案1: translate.google.cn
-    audio.src='https://translate.google.cn/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q='+encodeURIComponent(word);
-    audio.play().catch(()=>{
-      // 方案2: translate.googleapis.com
-      audio.src='https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q='+encodeURIComponent(word);
-      audio.play().catch(()=>{
-        // 方案3: 用 SpeechSynthesis 再试一次
-        try{
-          speechSynthesis.cancel();
-          const u=new SpeechSynthesisUtterance(word);
-          u.lang='en-US';u.rate=0.9;
-          speechSynthesis.speak(u)
-        }catch(e){toast('发音失败，请检查网络')}
-      })
+  /* audio 元素播放指定 URL */
+  function tryAudioUrl(url){
+    return new Promise(resolve=>{
+      const a=new Audio();
+      a.preload='auto';
+      a.oncanplaythrough=()=>{a.play().then(()=>resolve(true)).catch(()=>resolve(false))};
+      a.onerror=()=>resolve(false);
+      a.src=url;
+      // 3秒超时
+      setTimeout(()=>resolve(false),3000);
     })
+  }
+
+  /* Sound of Text 免费API */
+  async function trySoundOfText(word){
+    try{
+      const r=await fetch('https://api.soundoftext.com/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engine:'Google',data:{text:word,voice:'en-US'}})});
+      if(!r.ok)return false;
+      const j=await r.json();
+      if(!j.success||!j.id)return false;
+      // 轮询获取音频URL
+      for(let i=0;i<10;i++){
+        await new Promise(r=>setTimeout(r,500));
+        const s=await fetch('https://api.soundoftext.com/requests/'+j.id);
+        const sj=await s.json();
+        if(sj.status==='Done'&&sj.url){
+          return await tryAudioUrl(sj.url);
+        }
+      }
+      return false;
+    }catch(e){return false}
   }
 
   /* 工具 */
@@ -1211,6 +1243,5 @@ const App=(()=>{
   return{goHome,goToAdd,goToStudy,goToSettings,openAddDialog,closeAddDialog,confirmWord,openDeleteDialog,closeDeleteDialog,confirmDelete,openImportDialog,closeImportDialog,handleFileSelect,confirmImport,toggleWordSelect,toggleSelectAll,prevPage,nextPage,revealAnswer,handleFeedback,playPronunciation:play,confirmQuitStudy,closeQuitDialog,quitStudy,closeImgDialog,confirmImageSelection,refreshImages,addMoreImages,handleImageSelect,openLimitDialog,closeLimitDialog,confirmLimit,openEditDialog,closeEditDialog,confirmEdit,removeEditImage,editChangeImages,autoFetchMeaning,importNextStep,importGoBack,autoGetExample}
 })();
 </script>
-<audio id="tts-audio" style="display:none"></audio>
 </body>
 </html>
